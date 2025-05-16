@@ -1,0 +1,23 @@
+# Ignore environment variables
+backend/.env
+
+# Python-related ignores
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.swp
+
+# Django-related ignores
+media/
+staticfiles/
+test/
+
+# IntelliJ-related ignores
+.idea/
+
+# Ignore .pem
+*.pem
+
+backend/localhost.crt
+backend/localhost.key
