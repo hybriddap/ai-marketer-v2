@@ -4,6 +4,7 @@ import requests
 
 from cryptography.fernet import Fernet
 from django.conf import settings
+from django.db import transaction
 from rest_framework import status
 from rest_framework.parsers import JSONParser
 from rest_framework.permissions import IsAuthenticated
@@ -123,23 +124,20 @@ class FinalizeOauthView(APIView):
 
     def save_to_db(self,provider,user,metasData,instagram_account=None,instagram_link=None):
         # Now save the updated social media account to the database
-        business = Business.objects.filter(owner=user).first()
-        linked_platform = SocialMedia.objects.filter(business=business, platform=provider)
-        if not linked_platform.exists():
-            # Create a new SocialMedia instance if it doesn't exist
+        with transaction.atomic():
+            business = Business.objects.filter(owner=user).first()
+            if not business:
+                return False
+            
+            SocialMedia.objects.filter(business=business, platform=provider).delete()
+            
+            # Create a new SocialMedia instance
             social_media = SocialMedia.objects.create(
                 business=business,
                 platform=provider,
                 username=metasData["name"] if provider=="facebook" else instagram_account,
                 link=f'https://www.facebook.com/{metasData["id"]}' if provider=="facebook" else instagram_link,
             )
-            social_media.save()
-        else:
-            # Update the existing instance
-            platform = linked_platform.first()
-            platform.username = metasData["name"] if provider == "facebook" else instagram_account
-            platform.link = f'https://www.facebook.com/{metasData["id"]}' if provider == "facebook" else instagram_link
-            platform.save()
 
     def post(self, request):
         # TODO: Implement logic to process the OAuth callback and store access token
