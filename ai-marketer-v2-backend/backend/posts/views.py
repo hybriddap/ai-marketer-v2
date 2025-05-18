@@ -399,9 +399,11 @@ class PostListCreateView(ListCreateAPIView):
         data = request.POST
 
         try:
-            platform = SocialMedia.objects.get(platform=data["platform"])
-        except SocialMedia.DoesNotExist:
-            return Response({"error": "Invalid platform"}, status=status.HTTP_400_BAD_REQUEST)
+            platform = SocialMedia.objects.filter(business=business, platform=data["platform"]).first()
+            if not platform:
+                return Response({"error": f"No connected account found for {data['platform']}"}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         
         promotion = None
         if "promotion" in data and data["promotion"]:
