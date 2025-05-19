@@ -21,7 +21,7 @@ class Post(models.Model):
     platform = models.ForeignKey(SocialMedia, on_delete=models.CASCADE, related_name="posts")
     categories = models.ManyToManyField(Category, related_name="posts")
     caption = models.TextField()  # Text for the post's caption or message
-    image = models.ImageField(upload_to=post_image_path)
+    image = models.URLField(blank=True, null=True, max_length=1000)  # URL for the post's image
     link = models.URLField(blank=True, null=True)  # Optional URL (e.g., link to a website)
     post_id = models.TextField(blank=True) # Text field for the posts id stored for deletion later on
     created_at = models.DateTimeField(auto_now_add=True)  # Timestamp for when the post was created

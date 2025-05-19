@@ -8,7 +8,6 @@ from .models import Post
 class PostSerializer(serializers.ModelSerializer):
     platform = serializers.SerializerMethodField()
     categories = serializers.SerializerMethodField()
-    image = serializers.SerializerMethodField() 
 
     class Meta:
         model = Post
@@ -22,9 +21,3 @@ class PostSerializer(serializers.ModelSerializer):
     def get_categories(self, obj):
         return [cat.label for cat in obj.categories.all()]
     
-    # Generates absolute URLs when request object is available
-    def get_image(self, obj):
-        request = self.context.get("request")
-        if request:
-            return request.build_absolute_uri(obj.image.url)
-        return obj.image.url
