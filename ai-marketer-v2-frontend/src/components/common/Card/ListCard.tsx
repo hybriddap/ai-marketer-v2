@@ -1,3 +1,4 @@
+// src/components/common/Card/ListCard.tsx
 "use client";
 
 import React, { forwardRef, useState, useEffect, useRef } from "react";
@@ -63,8 +64,7 @@ const ListCard = forwardRef<HTMLDivElement, ListCardProps>(
     const cardRef = useRef<HTMLDivElement>(null);
     const [isMobileLayout, setIsMobileLayout] = useState(false);
 
-    const [imagePreviewUrl, setImagePreviewUrl] =
-      useState<string>("/media/no-post.jpg");
+    const [imagePreviewUrl, setImagePreviewUrl] = useState<string>("");
     const [date, setDate] = useState<string>("");
     const [socialLink, setSocialLink] = useState<{
       link: string;
@@ -72,12 +72,14 @@ const ListCard = forwardRef<HTMLDivElement, ListCardProps>(
     } | null>(null);
     const [description, setDescription] = useState<string>("");
     const [status, setStatus] = useState<string>("");
+    const [aspectRatio, setAspectRatio] = useState<string>("4/5");
 
     useEffect(() => {
       if (item.type !== "post") return;
 
       const post = item as Post;
       setImagePreviewUrl(post.image);
+      setAspectRatio(post.aspectRatio || "4/5");
 
       let tempDate = "";
       if (post.status === "Published" && post.postedAt)
@@ -104,6 +106,8 @@ const ListCard = forwardRef<HTMLDivElement, ListCardProps>(
       const scheduleDate =
         platformSchedule[review.platform]?.scheduleDate ?? null;
       setImagePreviewUrl(review.image);
+      setAspectRatio(review.aspectRatio || "4/5");
+
       if (scheduleDate) {
         setDate(toLocalTime(scheduleDate, "yyyy-MM-dd'T'HH:mm"));
       } else {
@@ -177,11 +181,7 @@ const ListCard = forwardRef<HTMLDivElement, ListCardProps>(
       if (!itemId) return;
       try {
         await apiClient.get(POSTS_API.LIKE_COMMENTS(itemId));
-        //const data = JSON.stringify(response.message.message);
-        //console.log(data);
-        //console.log(response);
         setIsLoaded(true);
-        //console.log(JSON.stringify(response.message.message[0].comments.data[0].message));
       } catch (error: unknown) {
         if (error instanceof Error) {
           console.error("Error liking comment:", error);
@@ -196,11 +196,7 @@ const ListCard = forwardRef<HTMLDivElement, ListCardProps>(
       if (!itemId) return;
       try {
         await apiClient.get(POSTS_API.REPLY_COMMENTS(itemId, message));
-        //const data = JSON.stringify(response.message.message);
-        //console.log(data);
-        //console.log(response);
         setIsLoaded(true);
-        //console.log(JSON.stringify(response.message.message[0].comments.data[0].message));
       } catch (error: unknown) {
         if (error instanceof Error) {
           console.error("Error replying to comment:", error);
@@ -215,7 +211,6 @@ const ListCard = forwardRef<HTMLDivElement, ListCardProps>(
       if (!itemId) return;
       try {
         await apiClient.get(POSTS_API.REPLY_COMMENTS(itemId, "delete000")); //use same endpoint to not require a new one
-        //console.log(response);
         setIsLoaded(true);
       } catch (error: unknown) {
         if (error instanceof Error) {
@@ -233,9 +228,6 @@ const ListCard = forwardRef<HTMLDivElement, ListCardProps>(
         const response = (await apiClient.get(POSTS_API.COMMENTS(itemId))) as {
           message: CommentsResponse;
         };
-        //const data = JSON.stringify(response.message.message);
-        //console.log(data);
-        // console.log(response);
 
         const comments = response.message.message;
         const localComments = [];
@@ -259,7 +251,6 @@ const ListCard = forwardRef<HTMLDivElement, ListCardProps>(
         }
         setComments(localComments);
         setIsLoaded(true);
-        //console.log(JSON.stringify(response.message.message[0].comments.data[0].message));
       } catch (error: unknown) {
         if (error instanceof Error) {
           console.error("Error getting comments:", error);
@@ -272,7 +263,6 @@ const ListCard = forwardRef<HTMLDivElement, ListCardProps>(
     const handleCommentModal = () => {
       getComments((item as Post).id);
       setCommentsOpen(!commentsOpen);
-      //window.location.href = `/posts?mode=comments&postId=${(item as Post).postId}`;  // Replace with the desired URL
     };
 
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -280,6 +270,18 @@ const ListCard = forwardRef<HTMLDivElement, ListCardProps>(
       setDate(newDate);
       updatePlatformScheduleDate((item as PostReview).platform, newDate);
     };
+
+    const getAspectRatioCss = (ratio: string): string => {
+      if (!ratio || ratio === "1/1") return "aspect-square";
+
+      if (ratio === "4/5") return "aspect-[4/5]";
+      if (ratio === "16/9") return "aspect-video";
+      if (ratio === "4/3") return "aspect-[4/3]";
+
+      return `aspect-[${ratio}]`;
+    };
+
+    const aspectRatioCss = getAspectRatioCss(aspectRatio);
 
     return (
       <div
@@ -309,25 +311,27 @@ const ListCard = forwardRef<HTMLDivElement, ListCardProps>(
           </div>
         )}
 
+        {/* Image Container with better aspect ratio handling */}
         <div
-          className={`relative overflow-hidden ${
-            isMobileLayout ? "w-full h-60" : "w-60 h-auto self-stretch"
+          className={`relative bg-black overflow-hidden ${
+            isMobileLayout ? "w-full rounded-t-lg" : "w-60 rounded-l-lg"
           }`}
         >
-          <Image
-            src={imagePreviewUrl}
-            alt="Thumbnail"
-            width={200}
-            height={200}
-            className={`w-[200px] ${
-              (item as Post).aspectRatio === "1/1"
-                ? "h-[200px] aspect-[1/1]"
-                : (item as Post).aspectRatio === "4/5"
-                ? "h-auto aspect-[4/5]"
-                : "h-auto aspect-[1/1]" // fallback
-            } mx-auto object-cover `} // Added aspect ratio for better image handling. But need to update it to get saved aspect ratio from db. Should we?
-            priority // Added priority to optimize LCP
-          />
+          {/* Container with fixed dimensions */}
+          <div
+            className={`${
+              isMobileLayout ? "h-60" : "h-72"
+            } w-full flex items-center justify-center relative`}
+          >
+            <Image
+              src={imagePreviewUrl}
+              alt="Post thumbnail"
+              width={240}
+              height={240}
+              className={`${aspectRatioCss} w-auto h-auto object-contain min-w-full min-h-full`}
+              priority // Added priority to optimize LCP
+            />
+          </div>
         </div>
 
         <div className="flex flex-1 flex-col p-4">
