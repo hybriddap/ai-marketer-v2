@@ -1,8 +1,4 @@
 // src/app/(protected)/posts/dashboard/index.tsx
-// Posts dashboard main view.
-// - Lists posts with search, filter, and pagination
-// - Allows edit, delete, and retry actions
-// - Controls modal notifications
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -46,6 +42,7 @@ export const PostsDashboardView = ({
   const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
 
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
+  const [isPendingDisplay, setIsPendingDisplay] = useState(true);
 
   const { showNotification } = useNotification();
 
@@ -81,6 +78,18 @@ export const PostsDashboardView = ({
       )?.key ?? null;
     setSelectedPlatform(normalisedPlatform);
   }, [platformParam]);
+
+  // Prevent flickering loading states with a short delay
+  useEffect(() => {
+    if (isLoading) {
+      const timer = setTimeout(() => {
+        setIsPendingDisplay(false);
+      }, 300);
+      return () => clearTimeout(timer);
+    } else {
+      setIsPendingDisplay(false);
+    }
+  }, [isLoading]);
 
   // Auto-scroll to selected post when navigating from external links
   useEffect(() => {
@@ -119,7 +128,6 @@ export const PostsDashboardView = ({
     );
   }
 
-  // Replace your old delete functionality with:
   const handleOpenDeleteModal = (postId: string) => {
     setSelectedPostId(postId);
   };
@@ -163,59 +171,79 @@ export const PostsDashboardView = ({
         selectedStatus={selectedStatus}
         setSelectedStatus={setSelectedStatus}
       />
-      {isLoading ? (
-        <div className="flex flex-col justify-center items-center h-64">
-          <p className="text-gray-500">Loading...</p>
-        </div>
-      ) : (
-        posts.length === 0 && (
-          <Card showButton={false}>
-            <div className="text-center py-8 text-sm">
-              <p className="text-gray-600 mb-6 whitespace-pre-line">
-                {`No posts yet.\nClick 'Create Post' to start sharing your first post\nwith AI-powered help!`}
-              </p>
-            </div>
-          </Card>
-        )
-      )}
 
-      {posts.length > 0 && filteredPosts.length === 0 && (
-        <Card showButton={false}>
-          <div className="text-center py-8 text-sm">
-            <p className="text-gray-600 mb-6 whitespace-pre-line">
-              {`We couldn’t find any posts that match your search.\nTry changing the filters or keywords!`}
-            </p>
+      {/* Loading State */}
+      {isLoading && !isPendingDisplay && (
+        <div className="relative w-full">
+          <div className="mt-4 flex flex-col justify-center items-center py-16 bg-white rounded-lg shadow border border-gray-200">
+            <div className="w-10 h-10 border-4 border-gray-300 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+            <p className="text-gray-500">Loading posts...</p>
           </div>
-        </Card>
+        </div>
       )}
 
-      <PostList
-        posts={slicedPosts}
-        actionsBuilder={(post) => {
-          return [
-            post.status === "Failed"
-              ? { label: "Retry", onClick: () => handleRetry(post.id) }
-              : false,
-            post.status !== "Published"
-              ? { label: "Edit", onClick: () => handleEdit(post) }
-              : false,
-            { label: "Delete", onClick: () => handleOpenDeleteModal(post.id) },
-          ].filter(Boolean) as DropboxItem[];
-        }}
-        postRefs={postRefs}
-      />
+      {!isLoading && (
+        <>
+          {/* Empty State - No Posts */}
+          {posts.length === 0 && (
+            <Card showButton={false}>
+              <div className="text-center py-8 text-sm">
+                <p className="text-gray-600 mb-6 whitespace-pre-line">
+                  {`No posts yet.\nClick 'Create Post' to start sharing your first post\nwith AI-powered help!`}
+                </p>
+              </div>
+            </Card>
+          )}
 
-      {visibleCount < filteredPosts.length && (
-        <div className="flex justify-center mt-6">
-          <button
-            id="load-more-button"
-            onClick={handleLoadMore}
-            className="w-full px-6 py-3 text-sm font-medium text-gray-600 bg-white border border-gray-300 
+          {/* Empty State - No Filtered Results */}
+          {posts.length > 0 && filteredPosts.length === 0 && (
+            <Card showButton={false}>
+              <div className="text-center py-8 text-sm">
+                <p className="text-gray-600 mb-6 whitespace-pre-line">
+                  {`We couldn't find any posts that match your search.\nTry changing the filters or keywords!`}
+                </p>
+              </div>
+            </Card>
+          )}
+
+          {/* Posts List */}
+          {filteredPosts.length > 0 && (
+            <>
+              <PostList
+                posts={slicedPosts}
+                actionsBuilder={(post) => {
+                  return [
+                    post.status === "Failed"
+                      ? { label: "Retry", onClick: () => handleRetry(post.id) }
+                      : false,
+                    post.status !== "Published"
+                      ? { label: "Edit", onClick: () => handleEdit(post) }
+                      : false,
+                    {
+                      label: "Delete",
+                      onClick: () => handleOpenDeleteModal(post.id),
+                    },
+                  ].filter(Boolean) as DropboxItem[];
+                }}
+                postRefs={postRefs}
+              />
+
+              {/* Load More Button */}
+              {visibleCount < filteredPosts.length && (
+                <div className="flex justify-center mt-6">
+                  <button
+                    id="load-more-button"
+                    onClick={handleLoadMore}
+                    className="w-full px-6 py-3 text-sm font-medium text-gray-600 bg-white border border-gray-300 
                                 rounded-lg shadow-sm hover:bg-gray-100 transition"
-          >
-            Load More
-          </button>
-        </div>
+                  >
+                    Load More
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </>
       )}
     </div>
   );
