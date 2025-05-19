@@ -10,10 +10,27 @@ interface Props {
 export const PlatformAccountsCard = ({ platforms }: Props) => {
   const router = useRouter();
 
+  // Empty state - no platforms connected
+  if (!platforms || platforms.length === 0) {
+    return (
+      <div
+        onClick={() => router.push("/settings/social")}
+        className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md transition h-36 sm:h-40 flex flex-col"
+      >
+        <h3 className="text-lg font-semibold">Connected Platforms</h3>
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-gray-500 text-sm text-center">
+            No social media accounts connected
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       onClick={() => router.push("/settings/social")}
-      className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md transition"
+      className="bg-white rounded-lg shadow p-4 cursor-pointer hover:shadow-md transition h-36 sm:h-40"
     >
       <h3 className="text-lg font-semibold mb-4">Connected Platforms</h3>
       <ul className="space-y-2">
