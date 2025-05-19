@@ -4,26 +4,19 @@ AI Marketer is a platform that automates social media marketing using artificial
 
 ## Project Overview
 
-This project was developed as part of a Work-integrated Learning (WIL) placement at AKA Project.
+This project was developed as part of a Work-integrated Learning (WIL) placement at AKA Studio.
+For detailed feature descriptions, assigned developers, and progress dates, please refer to the [Features Document](docs/Product/Features%20v3%20(18.May).pdf).
 
-## Collaborators
-- **[Heeran](https://github.com/heeran-kim)** - Project Lead, Full Stack Development (Frontend & Backend), System Architecture, Authentication System, Database Design, Promotion Recommendations, Caption Generation
+### Collaborators
+- **[Heeran](https://github.com/heeran-kim)** - Project Lead, Full Stack Development, System Architecture, Authentication System, Database Design, Promotion Recommendations, Caption Generation
 - **[Daniel](https://github.com/hybriddap)** - Social Media API Integration (Meta), Post Publishing System, Two-Factor Authentication
 - **[Drishti](https://github.com/drishtimadaan2025)** - Password Recovery System, Account Management Features
-
-### Key Features
-- Business profile management
-- Post scheduling and management
-- Multi-platform social media integration (Facebook, Instagram)
-- AI-powered caption generation for social media posts (OpenAI)
-- Sales data analysis and AI-driven promotion recommendations (Square, OpenAI)
 
 ## Getting Started
 
 ### Local Development
 
-For setting up and running the project locally, please refer to the detailed setup guide:
-- [Local Setup Guide](docs/Guides/Local_Setup_Guide.pdf)
+For setting up and running the project locally, please refer to the [Local Setup Guide](docs/Guides/Local%20Setup%20Guide.pdf)
 
 ### Deployment
 
