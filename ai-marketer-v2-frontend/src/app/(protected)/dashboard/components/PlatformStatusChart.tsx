@@ -1,4 +1,4 @@
-// src/app/(protected)/dashboard/components/PostStatusChart.tsx
+// src/app/(protected)/dashboard/components/PlatformStatusChart.tsx
 "use client";
 
 import { useRouter } from "next/navigation";
@@ -95,17 +95,30 @@ export const PlatformStatusChart = ({ data }: PlatformStatusChartProps) => {
     );
   }
 
+  // Dynamically calculate grid columns based on number of platforms
+  const getGridClass = (itemCount: number) => {
+    if (itemCount <= 2) return "grid-cols-2";
+    if (itemCount === 3) return "grid-cols-3";
+    if (itemCount === 4) return "grid-cols-4";
+    return "grid-cols-2 sm:grid-cols-3 md:grid-cols-4";
+  };
+
+  const itemCount = (chartData?.labels as string[])?.length || 0;
+  const gridClass = getGridClass(itemCount);
+
   return (
     <div className="bg-white rounded-lg shadow p-4">
       <h3 className="text-lg font-semibold mb-4">Platform Status Overview</h3>
       <div className="h-64 flex items-center justify-center">
         <Doughnut data={chartData!} options={options} />
       </div>
-      <div className="mt-4 grid grid-cols-3 gap-2">
+
+      {/* Dynamic grid layout based on number of items */}
+      <div className={`mt-4 grid ${gridClass} gap-2`}>
         {(chartData?.labels as string[]).map((label: string, index: number) => (
           <div
             key={data[index]?.key}
-            className="text-center cursor-pointer hover:bg-gray-100 p-2 rounded"
+            className="text-center cursor-pointer hover:bg-gray-100 p-2 rounded transition-colors"
             onClick={() => router.push(`/posts?platform=${data[index]?.key}`)}
           >
             <div className="flex items-center justify-center">
@@ -118,7 +131,7 @@ export const PlatformStatusChart = ({ data }: PlatformStatusChartProps) => {
                     ] ?? "#ccc",
                 }}
               ></div>
-              <span className="text-sm font-medium">{label}</span>
+              <span className="text-sm font-medium truncate">{label}</span>
             </div>
             <div className="text-lg font-bold">
               {chartData.datasets[0].data[index] ?? 0}
