@@ -1,5 +1,7 @@
+import io
 import logging
 import os
+from PIL import Image
 import requests
 
 from django.conf import settings
@@ -22,18 +24,27 @@ def upload_image_file_to_discord(image_file):
     
     message_id = None
     image_url = None
-    
-    temp_file_path = f"/tmp/{image_file.name}"
-    with open(temp_file_path, 'wb+') as temp_file:
-        for chunk in image_file.chunks():
-            temp_file.write(chunk)
 
-
-    with open(temp_file_path, 'rb') as image_file:
-        files = {'file': image_file}
+    if isinstance(image_file, Image.Image):
+        # Handle PIL Image object
+        img_byte_arr = io.BytesIO()
+        image_file.save(img_byte_arr, format='PNG')
+        img_byte_arr.seek(0)
+        
+        files = {'file': ('image.png', img_byte_arr, 'image/png')}
         response = requests.post(webhook_url, files=files)
-    
-    os.remove(temp_file_path)
+    else:
+        temp_file_path = f"/tmp/{image_file.name}"
+        with open(temp_file_path, 'wb+') as temp_file:
+            for chunk in image_file.chunks():
+                temp_file.write(chunk)
+
+
+        with open(temp_file_path, 'rb') as image_file:
+            files = {'file': image_file}
+            response = requests.post(webhook_url, files=files)
+        
+        os.remove(temp_file_path)
     
     if response.status_code == 200:
         message_data = response.json()
