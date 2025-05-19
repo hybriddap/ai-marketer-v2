@@ -3,6 +3,9 @@
 AI Marketer is a platform that automates social media marketing using artificial intelligence. Upload images and the AI will generate appropriate captions to help you post across multiple social media platforms.
 
 ## Getting Started 
+The instructions below are for running AI Marketer locally.
+For details on deployment or retrieving environment variables (e.g., API keys, secrets), please refer to the materials provided by Daniel.
+
 ### Frontend Setup Guide
 
 This guide provides instructions for setting up and running the AI Marketer frontend application in your local environment. The project has a monorepo structure, and this section focuses on the setup within the `ai-marketer-v2-frontend` directory.
@@ -168,6 +171,8 @@ src/
 └── utils/               # Utility functions
 ```
 
+<div style="page-break-after: always;"></div>
+
 ### Backend Setup Guide
 
 This guide provides instructions for setting up and running the AI Marketer backend application in your local environment.
@@ -309,6 +314,8 @@ If certain features don't work due to missing API keys:
 - Make sure all required API keys are set in your `.env` file
 - For development, you can use placeholder values for some third-party services if you're not using those features
 
+<div style="page-break-after: always;"></div>
+
 ### Backend Project Structure
 
 The backend application is built with Django and has the following structure:
@@ -334,38 +341,3 @@ backend/
 ├── requirements.txt     # Python dependencies
 └── Dockerfile           # Docker configuration
 ```
-
-## Core Features
-
-### AI-Powered Caption Generation
-Upload images and generate AI-powered captions for your social media posts.
-
-### Social Media Integration
-Connect your Facebook and Instagram business accounts to post directly from the platform.
-
-### Business Analytics
-Track your social media performance and get insights into your posts.
-
-### Square Integration
-Connect your Square account to import sales data and generate promotion suggestions.
-
-### Promotion Management
-Create and manage promotions for your business based on AI-powered suggestions.
-
-## Technologies Used
-
-### Backend
-- Python 3.11
-- Django 5.1
-- Django REST Framework
-- PostgreSQL
-- Docker
-- Celery
-- Redis
-- OpenAI API
-
-### Frontend
-- Next.js
-- React
-- TypeScript
-- Tailwind CSS
