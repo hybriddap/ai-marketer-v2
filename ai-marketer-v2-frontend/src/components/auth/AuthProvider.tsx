@@ -109,10 +109,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     data: user,
     error,
     mutate: mutateUser,
-  } = useFetchData<User | null>(USERS_API.ME, {
-    revalidateIfStale: false, // If cached data exists, don't re-fetch when mounting
-    revalidateOnFocus: false, // Don't re-fetch when the window/tab gains focus
-  });
+  } = useFetchData<User | null>(USERS_API.ME);
 
   // Update auth state when user data or error changes
   useEffect(() => {
@@ -139,10 +136,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       method,
       credentials: { email, password, code },
     });
-    const res = await fetch(USERS_API.ME, { credentials: "include" });
-    const newUser = await res.json();
-    mutateUser(newUser, false);
-    if (newUser) router.push("/dashboard");
+    await mutateUser();
+    if (user) router.push("/dashboard");
   };
 
   /**

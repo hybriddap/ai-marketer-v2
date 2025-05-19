@@ -23,7 +23,7 @@ export default function AccountSettings() {
       console.error(error);
       showNotification("error", "Failed to delete account. Please try again.");
     } finally {
-      await mutateUser(undefined, true);
+      await mutateUser();
       setIsLoading(false);
     }
   };
