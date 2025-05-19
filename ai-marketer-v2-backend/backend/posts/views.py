@@ -94,7 +94,7 @@ class PostListCreateView(ListCreateAPIView):
             return "https://upload.wikimedia.org/wikipedia/commons/6/65/No-Image-Placeholder.svg"
 
     def remove_deleted_posts(self,platform,posts_data,business):
-        platform_obj = SocialMedia.objects.get(platform=platform)
+        platform_obj = SocialMedia.objects.get(business=business, platform=platform)
 
         # Collect all links you want to match against
         links = [

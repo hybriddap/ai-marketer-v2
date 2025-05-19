@@ -31,7 +31,7 @@ services:
       - key: SQUARE_BASE_URL_PROD
         value: "https://connect.squareup.com"
       - key: SQUARE_REDIRECT_URI
-        value: "https://backend-d6fz.onrender.com/api/businesses/square/callback/"
+        value: "https://backend-0vrq.onrender.com/api/businesses/square/callback/"
       - key: FACEBOOK_REDIRECT_URI
         value: "https://ai-marketer-v2.vercel.app/settings/social/"
 databases:

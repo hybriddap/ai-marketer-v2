@@ -35,12 +35,12 @@ export const NAV_ITEMS: NavItem[] = [
         href: "/settings/general",
       },
       {
-        name: "Link Social Accounts",
-        href: "/settings/social",
-      },
-      {
         name: "Account Settings",
         href: "/settings/account",
+      },
+      {
+        name: "Link Social Accounts",
+        href: "/settings/social",
       },
       {
         name: "Link Square Account",
