@@ -448,7 +448,7 @@ class PostListCreateView(ListCreateAPIView):
             business=business,
             platform=platform,
             caption=data.get("caption", ""),
-            image=request.FILES.get('image'),
+            image=image_url,
             link=link,
             posted_at=posted_at,
             scheduled_at=scheduled_at,
