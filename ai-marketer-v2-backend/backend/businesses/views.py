@@ -144,7 +144,8 @@ class BusinessDetailView(APIView):
                 business = Business(owner=request.user)
                 business.logo = logo
                 business.save()
-                return Response(business, status=status.HTTP_201_CREATED)
+                serializer = BusinessSerializer(business, context={'request': request})
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
             else:
                 business.logo = logo
                 business.save(update_fields=['logo'])
