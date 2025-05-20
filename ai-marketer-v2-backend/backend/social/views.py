@@ -15,6 +15,7 @@ from businesses.models import Business
 
 from .models import SocialMedia
 from .serializers import SocialMediaSerializer
+from utils.meta_api import get_facebook_data, sync_posts_from_meta
 
 TWOFA_ENCRYPTION_KEY = settings.TWOFA_ENCRYPTION_KEY
 FACEBOOK_APP_ID = settings.FACEBOOK_APP_ID
@@ -84,45 +85,34 @@ class FinalizeOauthView(APIView):
             return data['access_token']
         else:
             return None #return none if error fetching access token
-    
-    def get_facebook_page_id(self,access_token):
-        #Retrieve facebook page id data from Meta's API
-        url = f'https://graph.facebook.com/v22.0/me/accounts?access_token={access_token}'
-        response = requests.get(url)
-        #return Response({'message':response,'access_token':access_token,'status':status.HTTP_200_OK})
-        if response.status_code != 200:
-            # Handle error response    
-            return None
-        metasData = response.json()
-        if not metasData.get("data"):
-            return None
-        #else return the page id
-        return metasData.get("data")[0]
 
-    def get_instagram_data(self,access_token,metasData):
+    def get_instagram_data(self, access_token, metasData):
         #get the Instagram account ID
         url = f'https://graph.facebook.com/v22.0/{metasData["id"]}?fields=instagram_business_account&access_token={access_token}'
+        
         response = requests.get(url)
         data=response.json()
         if response.status_code != 200:
-            # Handle error retrieving insta account id   
             return None
+        
         insta_account_data = data.get("instagram_business_account")
         if not insta_account_data:
-            return None #return error if no instagram account found
+            return None
+        
         #get the Instagram account Name
         url = f'https://graph.facebook.com/v22.0/{data["instagram_business_account"]["id"]}?fields=username&access_token={access_token}'
+        
         response = requests.get(url)
         data=response.json()
         if response.status_code != 200:
-            # Handle error response    
-            return None #return none if error fetching account data
+            return None
+        
         instagram_account=data["username"]
         instagram_link=f'https://www.instagram.com/{data["username"]}/'
-        return instagram_account,instagram_link
-        #return Response({'message': instagram_account}, status=status.HTTP_200_OK)
 
-    def save_to_db(self,provider,user,metasData,instagram_account=None,instagram_link=None):
+        return instagram_account,instagram_link
+
+    def save_to_db(self, provider, user, metasData, instagram_account=None, instagram_link=None):
         # Now save the updated social media account to the database
         with transaction.atomic():
             business = Business.objects.filter(owner=user).first()
@@ -140,37 +130,43 @@ class FinalizeOauthView(APIView):
             )
 
     def post(self, request):
-        # TODO: Implement logic to process the OAuth callback and store access token
         code=request.data.get('code')
         provider=request.data.get('provider')
-        if(not code):
+        if not code:
             return Response({'message': 'No Oauth Code provided!'}, status=status.HTTP_400_BAD_REQUEST)
         
-        access_token=self.get_access_token(code,provider,request.user)
-        if(not access_token):
+        business = Business.objects.filter(owner=request.user).first()
+        if not business:
+            return Response({"error": "Business not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        access_token = self.get_access_token(code, provider, request.user)
+        if not access_token:
             return Response({'message': 'No access token found!'}, status=status.HTTP_400_BAD_REQUEST)
         
         #For retriving the Facebook page id
-        facebook_data=self.get_facebook_page_id(access_token)
+        facebook_data = get_facebook_data(access_token)
         if not facebook_data:
             return Response({'message': 'No Facebook page found!'}, status=status.HTTP_400_BAD_REQUEST)
-        
 
         #For retriving the Instagram account
         instagram_account=None
         instagram_link=None
-        if(provider=="instagram"):
-            insta_data=self.get_instagram_data(access_token,facebook_data)
+        if provider == "instagram":
+            insta_data = self.get_instagram_data(access_token, facebook_data)
             if not insta_data:
                 return Response({'message': 'No Instagram account found!'}, status=status.HTTP_400_BAD_REQUEST)
             instagram_account=insta_data[0]
             instagram_link=insta_data[1]
         
         try:
-            self.save_to_db(provider,request.user,facebook_data,instagram_account,instagram_link)
+            self.save_to_db(provider, request.user, facebook_data, instagram_account, instagram_link)
+            try:
+                sync_posts_from_meta(request.user.id, business, provider)
+            except Exception as e:
+                logger.error(f"Error syncing posts from Meta: {e}")
         except:
             return Response({'message': 'Error saving to database! Make sure you have a business created first!'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        # If everything is successful, return a success response
+        
         return Response({'message': 'Successfully linked!'}, status=status.HTTP_200_OK)
 
 class OAuthCallbackView(APIView):
@@ -178,7 +174,6 @@ class OAuthCallbackView(APIView):
     parser_classes = [JSONParser]
 
     def get(self, request,provider):
-        # TODO: Implement logic to process the OAuth callback and store access token
         return Response({"message": "OAuth callback handling is not yet implemented."}, status=status.HTTP_501_NOT_IMPLEMENTED)
 
 class DisconnectSocialAccountView(APIView):
@@ -193,9 +188,6 @@ class DisconnectSocialAccountView(APIView):
         if not social_account:
             return Response({"error": f"No connected account found for provider '{provider}'"}, status=status.HTTP_404_NOT_FOUND)
 
-        # TODO: Revoke OAuth token before deleting from the database
-
-        # If token revocation succeeds, delete the account from DB
         social_account.delete()
         return Response({"message": f"Disconnected from {provider} successfully"}, status=status.HTTP_200_OK)
 

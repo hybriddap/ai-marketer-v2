@@ -1,13 +1,9 @@
-import io
 import json
 import logging
 from datetime import datetime
 from itertools import chain
 
 from celery.result import AsyncResult
-from cryptography.fernet import Fernet #cryptography package
-from django.conf import settings
-from django.core.files import File
 from django.utils import timezone
 from PIL import Image
 import requests
@@ -25,170 +21,18 @@ from posts.serializers import PostSerializer
 from promotions.models import Promotion
 from social.models import SocialMedia
 from utils.discord_api import upload_image_file_to_discord
+from utils.meta_api import (
+    get_facebook_page_id,
+    get_user_access_token,
+    sync_posts_from_meta
+)
 from utils.square_api import get_square_menu_items
-
-TWOFA_ENCRYPTION_KEY = settings.TWOFA_ENCRYPTION_KEY
 
 logger = logging.getLogger(__name__)
 
 class PostListCreateView(ListCreateAPIView):
     permission_classes = [IsAuthenticated]
     serializer_class = PostSerializer
-
-    def get_meta_posts(self, user, platform):
-        #Get Access Token
-        token_decoded = self.get_user_access_token(user)
-        #Get Facebook page id
-        facebookPageID=self.get_facebook_page_id(token_decoded)
-        if not facebookPageID:
-            return {"error": "Unable to retrieve Facebook Page ID! Maybe reconnect your Facebook or Instagram account in Settings!", "status": False}
-        
-        #For Facebook
-        if platform == 'facebook':
-            #Get page access token
-            url = f'https://graph.facebook.com/v22.0/me/accounts?access_token={token_decoded}'
-            response = requests.get(url)
-            if response.status_code != 200:
-                # Handle error response
-                return {"error": f"Unable to retrieve page access token. {response.text}", "status": False}
-            metasData = response.json()
-            if not metasData.get("data"):
-                return {"error": "Unable to retrieve page access token 2", "status": False}
-            #Get the page access token
-            page_access_token = metasData.get("data")[0]["access_token"]
-            url = f'https://graph.facebook.com/v22.0/{facebookPageID}/posts?fields=id,message,created_time,permalink_url,full_picture,likes.summary(true),comments.summary(true)&access_token={page_access_token}'
-            response = requests.get(url)
-            if response.status_code != 200:
-                # Handle error response
-                return {"error": f"Unable to fetch posts. {response.text}", "status": False}
-            media_data = response.json()
-            if not media_data.get("data"):
-                return {"error": f"Unable to retrieve posts {response.text}", "status": False}
-            posts_data = media_data.get("data")
-            return {"message": posts_data, "status": True}
-        
-        #For Instagram
-        # Get the Instagram account ID
-        instagram_account_id = self.returnInstagramDetails(facebookPageID,token_decoded)
-        if not instagram_account_id:    
-            return {"error": "Unable to retrieve Insta ID", "status": False}
-        #Send request to Meta API to get posts
-        url = f'https://graph.facebook.com/v22.0/{instagram_account_id}/media?fields=id,caption,media_type,media_url,timestamp,permalink,thumbnail_url,children,like_count,comments&access_token={token_decoded}'
-        response = requests.get(url)
-        if response.status_code != 200:
-            # Handle error response
-            return {"error": f"Unable to fetch posts. {response.text}", "status": False}
-        media_data = response.json()
-        if not media_data.get("data"):
-            return {"error": f"Unable to retrieve posts {response.text}", "status": False}
-        posts_data = media_data.get("data")
-        return {"message": posts_data, "status": True}
-    
-    def save_meta_image(self, post_data, platform):
-        media_type=post_data.get('media_type') if platform=="instagram" else "IMAGE" #Image for facebook
-        if media_type == "IMAGE" or media_type == "CAROUSEL_ALBUM":
-            return post_data.get('media_url') if platform == "instagram" else post_data.get('full_picture')
-        elif media_type == "VIDEO" and platform == "instagram":
-            return post_data.get('thumbnail_url')
-        else:
-            return "https://upload.wikimedia.org/wikipedia/commons/6/65/No-Image-Placeholder.svg"
-
-    def remove_deleted_posts(self,platform,posts_data,business):
-        platform_obj = SocialMedia.objects.get(business=business, platform=platform)
-
-        # Collect all links you want to match against
-        links = [
-            post_data.get("permalink") if platform == 'instagram' else post_data.get("permalink_url")
-            for post_data in posts_data
-        ]
-
-        # Fetch posts for the business and platform where link is NOT in the list -- Fetch Posts that dont exist in the api
-        posts_not_in_links = Post.objects.filter(
-            business=business,
-            platform=platform_obj
-        ).exclude(
-            link__in=links
-        )
-        #Fetch posted posts
-        posts_in_links = Post.objects.filter(
-            business=business,
-            platform=platform_obj,
-            link__in=links
-        )
-
-        for post in posts_not_in_links:     #delete posts that aren't in api but in db
-            if (post.status=='Published'):
-                post.delete()
-
-        for post in posts_not_in_links:     #Loop through scheduled
-            if(post.scheduled_at):
-                if(post.scheduled_at < timezone.now()):
-                    post.status='Failed'
-                    post.save()
-            for post2 in posts_in_links:    #Loop through actual
-                if(post.caption==post2.caption):
-                    if abs((post.scheduled_at - post2.posted_at).total_seconds()) <= 60:  #If distance from scheduled time is less than a minute
-                        logger.error("Same post found!")
-                        post.delete()   #Delete scheduled post
-        
-    def meta_get_function(self, business, platform):
-        #Save posts to the database
-        get_posts = self.get_meta_posts(self.request.user,platform)
-        if get_posts.get("status") == False:
-            logger.error(f"Error fetching posts: {get_posts.get('error')}")
-            return Post.objects.none()
-        posts_data = get_posts.get("message")
-
-        #Check if it was a reset by the user - Not used
-        # param = self.request.GET.get('status', None)
-        # logger.error(f"Param {param}")
-
-        for post_data in posts_data:
-            # Check if the post already exists in the database and update reactions
-            link=post_data.get("permalink") if platform=='instagram' else post_data.get("permalink_url")
-            if Post.objects.filter(
-                business=business,
-                platform__platform=platform,
-                link=link
-            ).exists():
-                found_post=Post.objects.filter(
-                    business=business,
-                    platform__platform=platform,
-                    link=link
-                ).first()
-                comments = post_data.get("comments", 0)
-                comment_count=len(post_data.get("comments").get("data")) if comments else 0
-                found_post.comments= comment_count #if platform=='instagram' else post_data.get('comments').get('summary').get('total_count') not working
-                
-                found_post.reactions=post_data.get("like_count", 0) if platform=='instagram' else post_data.get('likes').get('summary').get('total_count')
-                found_post.save()
-                continue
-            
-            # Create a new Post object
-            image_url= self.save_meta_image(post_data,platform)
-            comments= post_data.get("comments", 0)
-            comment_count=len(post_data.get("comments").get("data")) if comments else 0
-            caption=post_data.get("caption") if platform=='instagram' else post_data.get("message")        
-
-            post = Post(
-                business=business,
-                platform=SocialMedia.objects.get(business=business, platform=platform),
-                caption=caption if caption else "",
-                link=link,
-                post_id=post_data.get("id"),
-                posted_at=post_data.get("timestamp") if platform=='instagram' else post_data.get("created_time"),
-                image=image_url,
-                scheduled_at=None,
-                status='Published',
-                promotion=None,
-                reactions=post_data.get("like_count", 0) if platform=='instagram' else post_data.get('likes').get('summary').get('total_count'),
-                comments=comment_count #if platform=='instagram' else post_data.get('comments').get('summary').get('total_count') not working atm
-            )
-            # Save the post to the database
-            post.save()
-
-        self.remove_deleted_posts(platform,posts_data,business)
-
 
     def get_queryset(self):
         business = Business.objects.filter(owner=self.request.user).first()
@@ -210,13 +54,11 @@ class PostListCreateView(ListCreateAPIView):
         if len(linked_platforms) == 0:
             return Post.objects.none()
 
-        # Check if the business is linked to Facebook
         if any(platform["key"] == "facebook" for platform in linked_platforms):
-            self.meta_get_function(business,'facebook')
-        # Check if the business is linked to Instagram
+            sync_posts_from_meta(self.request.user.id, business, 'facebook')
+        
         if any(platform["key"] == "instagram" for platform in linked_platforms):
-            # Get posts from Meta API
-            self.meta_get_function(business,'instagram')
+            sync_posts_from_meta(self.request.user.id, business, 'instagram')
 
         failed_posts = list(Post.objects.filter(
             business=business,
@@ -256,49 +98,11 @@ class PostListCreateView(ListCreateAPIView):
 
         return Response({"linked": linked, "posts": response_data}, status=status.HTTP_200_OK)
     
-    def get_facebook_page_id(self,access_token):
-        #Retrieve facebook page id data from Meta's API
-        url = f'https://graph.facebook.com/v22.0/me/accounts?access_token={access_token}'
-        response = requests.get(url)
-        #return Response({'message':response,'access_token':access_token,'status':status.HTTP_200_OK})
-        if response.status_code != 200:
-            # Handle error response    
-            return None
-        metasData = response.json()
-        if not metasData.get("data"):
-            return None
-        #else return the page id
-        return metasData.get("data")[0]["id"]
-    
-    def returnInstagramDetails(self,facebookPageID,access_token):
-        url = f'https://graph.facebook.com/v22.0/{facebookPageID}?fields=instagram_business_account&access_token={access_token}'
-        response = requests.get(url)
-        data=response.json()
-        if response.status_code != 200:
-            # Handle error retrieving insta account id   
-            return None
-        insta_account_data = data.get("instagram_business_account")
-        if not insta_account_data:
-            return None #return error if no instagram account found
-        return insta_account_data.get("id") #return the instagram account id
-    
-    def get_user_access_token(self, user):
-        f = Fernet(TWOFA_ENCRYPTION_KEY) 
-        token=user.access_token[1:]  #do 1: to not include byte identifier
-        token_decrypted=f.decrypt(token)
-        token_decoded=token_decrypted.decode()
-        return token_decoded
-
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
-
-    def perform_create(self, serializer):
-        # TODO
-        business = Business.objects.filter(owner=self.request.user).first()
-        serializer.save(business=business)
 
     def crop_center_resize(self, image, target_width=1080, target_height=1350):
         aspect_target = target_width / target_height
@@ -417,7 +221,7 @@ class PostListCreateView(ListCreateAPIView):
             post_status = "Published"
 
         image_url=self.upload_image_file(request.FILES.get('image'),data.get("aspect_ratio","4/5"))
-        access_token=self.get_user_access_token(request.user)
+        access_token = get_user_access_token(request.user.id)
         scheduled_id=None
 
         match data["platform"]:
@@ -490,11 +294,11 @@ class PostDetailView(APIView):
         except Post.DoesNotExist:
             return None, Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
         
-    def get_meta_comments(self,user,platform,post_id):
+    def get_meta_comments(self, user_id, platform, post_id):
         #Get Access Token
-        token_decoded = self.get_user_access_token(user)
+        token_decoded = get_user_access_token(user_id)
         #Get Facebook page id
-        facebookPageID=self.get_facebook_page_id(token_decoded)
+        facebookPageID = get_facebook_page_id(token_decoded)
         if not facebookPageID:
             return {"error": "Unable to retrieve Facebook Page ID! Maybe reconnect your Facebook or Instagram account in Settings!", "status": False}
         
@@ -626,28 +430,12 @@ class PostDetailView(APIView):
 
             return replies
         return []
-
-
-        
-    def get_facebook_page_id(self,access_token):
-        #Retrieve facebook page id data from Meta's API
-        url = f'https://graph.facebook.com/v22.0/me/accounts?access_token={access_token}'
-        response = requests.get(url)
-        #return Response({'message':response,'access_token':access_token,'status':status.HTTP_200_OK})
-        if response.status_code != 200:
-            # Handle error response    
-            return None
-        metasData = response.json()
-        if not metasData.get("data"):
-            return None
-        #else return the page id
-        return metasData.get("data")[0]["id"]
     
-    def post_comment_likes(self,platform,comment_id,user):
+    def post_comment_likes(self, platform, comment_id, user_id):
         #Get Access Token
-        token_decoded = self.get_user_access_token(user)
+        token_decoded = get_user_access_token(user_id)
         #Get Facebook page id
-        facebookPageID=self.get_facebook_page_id(token_decoded)
+        facebookPageID = get_facebook_page_id(token_decoded)
         if not facebookPageID:
             return {"error": "Unable to retrieve Facebook Page ID! Maybe reconnect your Facebook or Instagram account in Settings!", "status": False}
         
@@ -674,37 +462,24 @@ class PostDetailView(APIView):
                     # Handle error response
                     logger.error(f"Error liking comment {response.text}")
                     return False
-                    #return {"error": f"Error liking comment. {response.text}", "status": False}
                 media_data = response.json()
-                # if not media_data.get("data"):
-                #     logger.error(f"Error retrieving liked comment {response.text}")
-                #     return False
-                #     #return {"error": f"Error retrieving liked comments likes {response.text}", "status": False}
-                # posts_data = media_data.get("data")
                 logger.error(media_data)
             else:
                 #Then delete
                 url = f'https://graph.facebook.com/v22.0/{comment_id}/likes?access_token={page_access_token}'
                 response = requests.delete(url)
                 if response.status_code != 200:
-                    # Handle error response
                     logger.error(f"Error liking comment {response.text}")
                     return False
-                    #return {"error": f"Error liking comment. {response.text}", "status": False}
                 media_data = response.json()
-                # if not media_data.get("data"):
-                #     logger.error(f"Error retrieving liked comment {response.text}")
-                #     return False
-                #     #return {"error": f"Error retrieving liked comments likes {response.text}", "status": False}
-                # posts_data = media_data.get("data")
                 logger.error(media_data)
             return True
 
-    def post_comment_reply(self,platform,comment_id,user,msg):
+    def post_comment_reply(self, platform, comment_id, user_id, msg):
         #Get Access Token
-        token_decoded = self.get_user_access_token(user)
+        token_decoded = get_user_access_token(user_id)
         #Get Facebook page id
-        facebookPageID=self.get_facebook_page_id(token_decoded)
+        facebookPageID = get_facebook_page_id(token_decoded)
         if not facebookPageID:
             return {"error": "Unable to retrieve Facebook Page ID! Maybe reconnect your Facebook or Instagram account in Settings!", "status": False}
         
@@ -748,14 +523,14 @@ class PostDetailView(APIView):
     def get(self, request, pk,msg=""):
         """Check to see if its a comment operation"""
         if 'likecomments' in request.path:
-            return Response({"message": self.post_comment_likes('facebook',pk,request.user)}, status=200)
+            return Response({"message": self.post_comment_likes('facebook', pk, request.user.id)}, status=200)
         if 'replycomments' in request.path:
-            return Response({"message": self.post_comment_reply('facebook',pk,request.user,msg)}, status=200)
+            return Response({"message": self.post_comment_reply('facebook', pk, request.user.id, msg)}, status=200)
         
         """Retrieve a specific post"""
         post, error_response = self.get_post(pk, request.user)
         if 'comments' in request.path:
-            return Response({"message": self.get_meta_comments(request.user,post.platform.platform,post.post_id)}, status=200)
+            return Response({"message": self.get_meta_comments(request.user.id, post.platform.platform,post.post_id)}, status=200)
 
         if error_response:
             return error_response
@@ -827,7 +602,7 @@ class PostDetailView(APIView):
             post.image = request.FILES['image']
         image_url=self.upload_image_file(post.image,request.data.get("aspect_ratio","4/5"))
         
-        access_token=self.get_user_access_token(request.user)
+        access_token = get_user_access_token(request.user.id)
 
         #Check if its a retry initiated by user
         if request.data.get('retry'):
@@ -905,13 +680,6 @@ class PostDetailView(APIView):
         serializer = PostSerializer(post)
         return Response(serializer.data)
     
-    def get_user_access_token(self, user):
-        f = Fernet(TWOFA_ENCRYPTION_KEY) 
-        token=user.access_token[1:]  #do 1: to not include byte identifier
-        token_decrypted=f.decrypt(token)
-        token_decoded=token_decrypted.decode()
-        return token_decoded
-    
     def delete_facebook(self,token_decoded,post_id):
         #Get page access token
         url = f'https://graph.facebook.com/v22.0/me/accounts?access_token={token_decoded}'
@@ -952,7 +720,7 @@ class PostDetailView(APIView):
         if post.platform.platform=='instagram':
             return Response({"message": "Instagram deletion not implemented yet"}, status=status.HTTP_400_BAD_REQUEST)
         
-        delete_message = self.delete_facebook(self.get_user_access_token(request.user),post.post_id)
+        delete_message = self.delete_facebook(get_user_access_token(request.user.id),post.post_id)
         if(delete_message['status'] == False):
             return Response({"message": "Some Error Deleting Post"}, status=status.HTTP_400_BAD_REQUEST)
 
