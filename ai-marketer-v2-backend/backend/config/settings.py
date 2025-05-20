@@ -81,6 +81,10 @@ DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
 if not DISCORD_WEBHOOK_URL:
     raise ValueError("DISCORD_WEBHOOK_URL environment variable is not set.")
 
+FIXIE_URL = os.getenv("FIXIE_URL")
+if not FIXIE_URL:
+    raise ValueError("FIXIE_URL environment variable is not set.")
+
 TEMP_MEDIA_DISCORD_WEBHOOK = os.getenv("TEMP_MEDIA_DISCORD_WEBHOOK", "False") == "True"
 
 

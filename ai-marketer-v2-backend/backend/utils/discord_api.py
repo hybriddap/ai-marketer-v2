@@ -32,7 +32,7 @@ def upload_image_file_to_discord(image_file):
         img_byte_arr.seek(0)
         
         files = {'file': ('image.png', img_byte_arr, 'image/png')}
-        response = requests.post(webhook_url, files=files)
+        response = requests.post(webhook_url, files=files, proxies={'https': settings.FIXIE_URL})
     else:
         temp_file_path = f"/tmp/{image_file.name}"
         with open(temp_file_path, 'wb+') as temp_file:
@@ -42,7 +42,7 @@ def upload_image_file_to_discord(image_file):
 
         with open(temp_file_path, 'rb') as image_file:
             files = {'file': image_file}
-            response = requests.post(webhook_url, files=files)
+            response = requests.post(webhook_url, files=files, proxies={'https': settings.FIXIE_URL})
         
         os.remove(temp_file_path)
     
