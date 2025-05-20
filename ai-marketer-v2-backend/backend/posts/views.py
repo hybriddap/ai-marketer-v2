@@ -146,8 +146,16 @@ class PostListCreateView(ListCreateAPIView):
         for post_data in posts_data:
             # Check if the post already exists in the database and update reactions
             link=post_data.get("permalink") if platform=='instagram' else post_data.get("permalink_url")
-            if Post.objects.filter(business=business, platform=SocialMedia.objects.get(business=business, platform=platform), link=link).exists():
-                found_post=Post.objects.filter(business=business, platform=SocialMedia.objects.get(platform=platform), link=link).first()
+            if Post.objects.filter(
+                business=business,
+                platform__platform=platform,
+                link=link
+            ).exists():
+                found_post=Post.objects.filter(
+                    business=business,
+                    platform__platform=platform,
+                    link=link
+                ).first()
                 comments = post_data.get("comments", 0)
                 comment_count=len(post_data.get("comments").get("data")) if comments else 0
                 found_post.comments= comment_count #if platform=='instagram' else post_data.get('comments').get('summary').get('total_count') not working
