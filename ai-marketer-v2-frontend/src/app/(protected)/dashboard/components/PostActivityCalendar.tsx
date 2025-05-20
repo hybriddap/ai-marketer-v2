@@ -57,11 +57,18 @@ export const PostActivityCalendar = ({
 
   // Calculate days since last post
   const daysSinceLastPost = lastPostDate
-    ? Math.floor(
-        (today.getTime() -
-          toLocalDateObject(new Date(lastPostDate)).getTime()) /
-          (1000 * 60 * 60 * 24)
-      )
+    ? (() => {
+        const todayDate = new Date(today);
+        todayDate.setHours(0, 0, 0, 0);
+
+        const lastPostLocalDate = toLocalDateObject(new Date(lastPostDate));
+        lastPostLocalDate.setHours(0, 0, 0, 0);
+
+        return Math.floor(
+          (todayDate.getTime() - lastPostLocalDate.getTime()) /
+            (1000 * 60 * 60 * 24)
+        );
+      })()
     : null;
 
   // Generate activity message and status
