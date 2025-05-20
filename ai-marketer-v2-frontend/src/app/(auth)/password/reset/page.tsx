@@ -54,9 +54,50 @@ export default function ResetPasswordPage() {
       );
       setIsSuccess(true);
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to reset password";
-      setErrors(errorMessage);
+      console.error("Error resetting password:", error);
+
+      // Handle circuit breaker errors
+      if (
+        error instanceof Error &&
+        error.message === "Circuit is open - service unavailable"
+      ) {
+        setErrors(
+          "Our service is temporarily unavailable. Please try again in a few minutes."
+        );
+        return;
+      }
+
+      if (error instanceof Error) {
+        try {
+          const parsedError = JSON.parse(error.message);
+          if (
+            parsedError.data?.non_field_errors?.[0] ===
+            "Invalid or expired token"
+          ) {
+            setErrors(
+              "This password reset link has expired or is invalid. Please request a new one."
+            );
+          } else if (parsedError.data?.non_field_errors) {
+            setErrors(parsedError.data.non_field_errors[0]);
+          } else if (parsedError.statusText) {
+            setErrors(parsedError.statusText);
+          } else {
+            setErrors(
+              "An error occurred while resetting your password. Please try again."
+            );
+          }
+        } catch {
+          // If JSON parsing fails
+          setErrors(
+            error.message ||
+              "An error occurred while resetting your password. Please try again."
+          );
+        }
+      } else {
+        setErrors(
+          "An error occurred while resetting your password. Please try again."
+        );
+      }
     } finally {
       setIsLoading(false);
     }
