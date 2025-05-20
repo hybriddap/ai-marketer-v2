@@ -132,12 +132,14 @@ export default function DragAndDropUploader({
               <IoClose size={14} />
             </button>
 
-            <button
-              onClick={handleResize}
-              className="absolute top-1 left-1 bg-black text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
-            >
-              <IoResize size={14} />
-            </button>
+            {fileType !== "logo" && (
+              <button
+                onClick={handleResize}
+                className="absolute top-1 left-1 bg-black text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+              >
+                <IoResize size={14} />
+              </button>
+            )}
           </div>
         ) : (
           <div className="flex items-center justify-between w-full">
