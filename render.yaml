@@ -34,6 +34,12 @@ services:
         value: "https://backend-0vrq.onrender.com/api/businesses/square/callback/"
       - key: FACEBOOK_REDIRECT_URI
         value: "https://ai-marketer-v2.vercel.app/settings/social/"
+      - key: CELERY_BROKER_URL
+        fromService:
+          name: redis
+          type: redis
+          property: connectionString
+
 databases:
   - name: postgres
     plan: free

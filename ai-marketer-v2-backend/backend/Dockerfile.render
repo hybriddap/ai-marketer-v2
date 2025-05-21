@@ -8,4 +8,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN chmod +x /app/entrypoint.sh
 ENTRYPOINT ["/app/entrypoint.sh"]
 
-CMD ["sh", "-c", "exec gunicorn --workers 2 --timeout 120 --bind 0.0.0.0:8000 backend.wsgi:application"]
+CMD ["sh", "-c", "gunicorn --workers 1 --timeout 60 --bind 0.0.0.0:8000 backend.wsgi:application & celery -A config.celery_app worker --loglevel=info --concurrency=1"]
