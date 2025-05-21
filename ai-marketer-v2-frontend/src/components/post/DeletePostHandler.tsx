@@ -23,12 +23,17 @@ export const DeletePostHandler = ({
 }: DeletePostHandlerProps) => {
   const [isLoading, setIsLoading] = useState(false);
 
+  const post = posts.find((p) => p.id === selectedPostId);
+  const isInstagramPost = post?.platform?.key === "instagram";
+
   // Generate appropriate message based on post status
   const getDeleteConfirmMessage = () => {
-    const post = posts.find((p) => p.id === selectedPostId);
-
     if (!post)
       return "Are you sure you want to delete this post? This action cannot be undone.";
+
+    if (isInstagramPost) {
+      return `Instagram doesn't support post deletion through the API. We'll implement this feature when it becomes available. Please wait.`;
+    }
 
     switch (post.status) {
       case "Posted":
@@ -75,6 +80,7 @@ export const DeletePostHandler = ({
       title="Delete Confirmation"
       message={getDeleteConfirmMessage()}
       confirmButtonText={isLoading ? "Deleting..." : "Delete"}
+      type={isInstagramPost ? "info" : "warning"}
       itemId={selectedPostId}
       onClose={onClose}
       onConfirm={() => handleDelete(selectedPostId)}
