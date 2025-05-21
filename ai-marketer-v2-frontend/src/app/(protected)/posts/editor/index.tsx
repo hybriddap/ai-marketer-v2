@@ -16,10 +16,12 @@ export const PostEditorEntry = ({
   posts,
   error,
   isLoading,
+  syncErrors,
 }: {
   posts: Post[];
   error: unknown;
   isLoading: boolean;
+  syncErrors?: { platform: string; error: string }[];
 }) => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -43,7 +45,12 @@ export const PostEditorEntry = ({
       )}
 
       {/* Render the posts dashboard */}
-      <PostsDashboardView posts={posts} error={error} isLoading={isLoading} />
+      <PostsDashboardView
+        posts={posts}
+        error={error}
+        isLoading={isLoading}
+        syncErrors={syncErrors}
+      />
     </>
   );
 };

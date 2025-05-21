@@ -1,6 +1,6 @@
 import logging
 
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils import timezone
@@ -15,12 +15,28 @@ User = get_user_model()
 logger = logging.getLogger(__name__)
 
 def get_user_access_token(user_id):
-    user = User.objects.get(id=user_id)
-    f = Fernet(TWOFA_ENCRYPTION_KEY) 
-    token=user.access_token[1:]
-    token_decrypted=f.decrypt(token)
-    token_decoded=token_decrypted.decode()
-    return token_decoded
+    try:
+        user = User.objects.get(id=user_id)
+        if not user.access_token:
+            logger.error(f"User {user_id} does not have an access token.")
+            return None
+        
+        f = Fernet(TWOFA_ENCRYPTION_KEY) 
+        token=user.access_token[1:]
+
+        try:
+            token_decrypted=f.decrypt(token)
+            token_decoded=token_decrypted.decode()
+            return token_decoded
+        except (InvalidToken, Exception) as e:
+            logger.error(f"Error decrypting token for user {user_id}: {str(e)}")
+            return None
+    except User.DoesNotExist:
+        logger.error(f"User with id {user_id} does not exist.")
+        return None
+    except Exception as e:
+        logger.error(f"Unexpected error in get_user_access_token for user {user_id}: {str(e)}")
+        return None
 
 def get_facebook_data(access_token):
     url = f'https://graph.facebook.com/v22.0/me/accounts?access_token={access_token}'
@@ -43,9 +59,12 @@ def sync_posts_from_meta(user_id, business, platform):
     
     if get_posts.get("status") == False:
         logger.error(f"Error fetching posts: {get_posts.get('error')}")
-        return Post.objects.none()
+        return get_posts
     
     posts_data = get_posts.get("message")
+    if not posts_data:
+        logger.warning(f"No posts data returned for {platform}")
+        return Post.objects.none()
 
     for post_data in posts_data:
         link=post_data.get("permalink") if platform=='instagram' else post_data.get("permalink_url")
@@ -90,6 +109,7 @@ def sync_posts_from_meta(user_id, business, platform):
         post.save()
 
     _remove_deleted_posts(platform,posts_data,business)
+    return {"message": "Posts synced successfully", "status": True}
 
 def _returnInstagramDetails(facebookPageID, access_token):
     url = f'https://graph.facebook.com/v22.0/{facebookPageID}?fields=instagram_business_account&access_token={access_token}'
@@ -107,9 +127,12 @@ def _returnInstagramDetails(facebookPageID, access_token):
 
 def _get_meta_posts(user_id, platform):
     token_decoded = get_user_access_token(user_id)
+    if not token_decoded:
+        return {"error": "Invalid or missing access token. Please reconnect your social account in Settings.", "status": False}
+    
     facebookPageID = get_facebook_page_id(token_decoded)
     if not facebookPageID:
-        return {"error": "Unable to retrieve Facebook Page ID! Maybe reconnect your Facebook or Instagram account in Settings!", "status": False}
+        return {"error": "Unable to retrieve Facebook Page ID. Please reconnect your social account in Settings.", "status": False}
     
     #For Facebook
     if platform == 'facebook':

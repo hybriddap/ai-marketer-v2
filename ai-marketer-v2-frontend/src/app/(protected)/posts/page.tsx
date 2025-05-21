@@ -15,6 +15,7 @@ export default function PostsDashboard() {
   const router = useRouter();
   const { data, isLoading, error } = useFetchData<PostListDto>(POSTS_API.LIST);
   const posts = (data?.posts || []).map(mapPostDtoToPost);
+  const syncErrors = data?.syncErrors;
 
   return (
     <PostEditorProvider>
@@ -29,7 +30,12 @@ export default function PostsDashboard() {
             : `Create posts for your business. Our AI generates captions for you and helps publish them on linked platforms.`,
         }}
       />
-      <PostEditorEntry posts={posts} error={error} isLoading={isLoading} />
+      <PostEditorEntry
+        posts={posts}
+        error={error}
+        isLoading={isLoading}
+        syncErrors={syncErrors}
+      />
     </PostEditorProvider>
   );
 }

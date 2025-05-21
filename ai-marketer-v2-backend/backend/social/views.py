@@ -161,9 +161,11 @@ class FinalizeOauthView(APIView):
         try:
             self.save_to_db(provider, request.user, facebook_data, instagram_account, instagram_link)
             try:
-                sync_posts_from_meta(request.user.id, business, provider)
+                result = sync_posts_from_meta(request.user.id, business, provider)
+                if isinstance(result, dict) and result.get("status") == False:
+                    logger.error(f"Error syncing posts: {result.get('error')}")
             except Exception as e:
-                logger.error(f"Error syncing posts from Meta: {e}")
+                logger.error(f"Error syncing posts: {e}")
         except:
             return Response({'message': 'Error saving to database! Make sure you have a business created first!'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         

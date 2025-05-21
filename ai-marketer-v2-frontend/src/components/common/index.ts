@@ -7,6 +7,7 @@ export { default as StatusIcon } from "./StatusIcon";
 export { default as InfoTooltip } from "./InfoTooltip";
 export { ErrorFallback } from "./ErrorFallback";
 export { default as CategoryChipList } from "./CategoryChipList";
+export { default as SyncErrorBanner } from "./SyncErrorBanner";
 export {
   default as ProductChipList,
   ProductChipList as NewProductChipList,

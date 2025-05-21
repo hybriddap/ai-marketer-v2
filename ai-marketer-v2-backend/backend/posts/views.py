@@ -56,11 +56,26 @@ class PostListCreateView(ListCreateAPIView):
         if len(linked_platforms) == 0:
             return Post.objects.none()
 
+        self.sync_errors = []
         if any(platform["key"] == "facebook" for platform in linked_platforms):
-            sync_posts_from_meta(self.request.user.id, business, 'facebook')
+            try:
+                result = sync_posts_from_meta(self.request.user.id, business, 'facebook')
+                if isinstance(result, dict) and result.get("status") == False:
+                    logger.error(f"Error syncing Facebook posts: {result.get('error')}")
+                    self.sync_errors.append({"platform": "facebook", "error": result.get("error")})
+            except Exception as e:
+                logger.error(f"Error syncing Facebook posts: {e}")
+                self.sync_errors.append({"platform": "facebook", "error": str(e)})
         
         if any(platform["key"] == "instagram" for platform in linked_platforms):
-            sync_posts_from_meta(self.request.user.id, business, 'instagram')
+            try:
+                result = sync_posts_from_meta(self.request.user.id, business, 'instagram')
+                if isinstance(result, dict) and result.get("status") == False:
+                    logger.error(f"Error syncing Instagram posts: {result.get('error')}")
+                    self.sync_errors.append({"platform": "instagram", "error": result.get("error")})
+            except Exception as e:
+                logger.error(f"Error syncing Instagram posts: {e}")
+                self.sync_errors.append({"platform": "instagram", "error": str(e)})
 
         failed_posts = list(Post.objects.filter(
             business=business,
@@ -97,8 +112,12 @@ class PostListCreateView(ListCreateAPIView):
 
         queryset = self.get_queryset()
         response_data = self.get_serializer(queryset, many=True).data
+        response = {"linked": linked, "posts": response_data}
 
-        return Response({"linked": linked, "posts": response_data}, status=status.HTTP_200_OK)
+        if hasattr(self, 'sync_errors') and self.sync_errors:
+            response["sync_errors"] = self.sync_errors
+
+        return Response(response, status=status.HTTP_200_OK)
     
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

@@ -25,6 +25,7 @@ export interface PostDto {
 export interface PostListDto {
   linked: boolean; // Whether the business is linked to a platform or not
   posts: PostDto[]; // Array of posts
+  syncErrors?: { platform: string; error: string }[]; // Optional array of synchronization errors
 }
 
 /**

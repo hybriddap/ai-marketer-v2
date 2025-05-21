@@ -13,7 +13,7 @@ import { PostsFilterBar } from "./PostsFilterBar";
 import { PostList } from "./PostList";
 import { POST_STATUS_OPTIONS } from "@/constants/posts";
 import { PLATFORM_OPTIONS_WITH_LABEL } from "@/utils/icon";
-import { Card, ErrorFallback } from "@/components/common";
+import { Card, ErrorFallback, SyncErrorBanner } from "@/components/common";
 import { mutate } from "swr";
 import { POSTS_API } from "@/constants/api";
 import { apiClient } from "@/hooks/dataHooks";
@@ -24,10 +24,12 @@ export const PostsDashboardView = ({
   posts,
   error,
   isLoading,
+  syncErrors,
 }: {
   posts: Post[];
   error: unknown;
   isLoading: boolean;
+  syncErrors?: { platform: string; error: string }[];
 }) => {
   const router = useRouter();
   const { setSelectedPost } = usePostEditorContext();
@@ -163,6 +165,11 @@ export const PostsDashboardView = ({
         onError={(message) => showNotification("error", message)}
         posts={posts}
       />
+
+      {/* Display sync errors if present */}
+      {syncErrors && syncErrors.length > 0 && (
+        <SyncErrorBanner errors={syncErrors} />
+      )}
 
       <PostsFilterBar
         setSearchTerm={setSearchTerm}
