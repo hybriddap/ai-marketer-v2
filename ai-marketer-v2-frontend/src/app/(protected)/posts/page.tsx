@@ -24,10 +24,12 @@ export default function PostsDashboard() {
         actionButton={{
           label: "Create Posts",
           onClick: () => router.push("/posts?mode=create", { scroll: false }),
-          isDisabled: !data?.linked,
+          isDisabled: !data?.linked || (syncErrors && syncErrors.length > 0),
           tooltipContent: !data?.linked
             ? "You need to link social account first."
-            : `Create posts for your business. Our AI generates captions for you and helps publish them on linked platforms.`,
+            : syncErrors && syncErrors.length > 0
+            ? "Please fix social media sync issues before creating new posts."
+            : "Create posts for your business. Our AI generates captions for you and helps publish them on linked platforms.",
         }}
       />
       <PostEditorEntry

@@ -171,9 +171,9 @@ export interface PostEditorContextType {
 
   resetPostEditor: () => void; // Function to reset all editor state
 
-  fetchCaptionSuggestions: () => void; // Function to fetch AI-generated caption suggestions
-  createPost: () => void; // Function to create a new post
-  updatePost: () => void; // Function to update an existing post
+  fetchCaptionSuggestions: () => Promise<void>; // Function to fetch AI-generated caption suggestions
+  createPost: () => Promise<void>; // Function to create a new post
+  updatePost: () => Promise<void>; // Function to update an existing post
 }
 
 // Enum representing the editor mode

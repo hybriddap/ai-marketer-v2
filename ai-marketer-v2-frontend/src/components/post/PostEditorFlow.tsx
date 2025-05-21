@@ -68,6 +68,13 @@ export const PostEditorFlow = () => {
       return;
     }
 
+    if (stepState.stepName === "IMAGE_SELECTION" && !isGeneratingCaption) {
+      dispatch({
+        type: "NEXT",
+        payload: { captionGenerationSettings },
+      });
+    }
+
     if (stepState.stepNumber === StepNames.length && !skipConfirm) {
       const allDontPost = Object.values(platformSchedule).every(
         (schedule) => schedule.scheduleType === "dontPost"
