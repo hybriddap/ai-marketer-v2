@@ -32,15 +32,6 @@ interface BackendHealthProviderProps {
 
 /**
  * BackendHealthProvider Component
- *
- * Monitors backend health status and provides a fallback UI
- * when backend is down. Works alongside the circuit breaker
- * for complete error handling.
- *
- * Benefits:
- * - Shows a user-friendly error page instead of multiple errors
- * - Periodically checks if backend has recovered
- * - Provides app-wide health status via context API
  */
 export function BackendHealthProvider({
   children,
@@ -90,9 +81,13 @@ export function BackendHealthProvider({
             <h1 className="text-2xl font-bold mb-4">
               Service Temporarily Unavailable
             </h1>
-            <p className="mb-6">
-              We&apos;re experiencing technical difficulties connecting to our
-              servers. Our team has been notified and is working on a solution.
+            <p className="mb-3 text-gray-700">
+              {`We're experiencing technical difficulties connecting to our
+              servers. Our team has been notified and is working on a solution.`}
+            </p>
+            <p className="mb-6 text-gray-600 text-sm">
+              {`If our service has been inactive for a while, it may take 1-2
+                minutes to restart. Please try again shortly.`}
             </p>
             <button
               onClick={() => checkHealth()}
