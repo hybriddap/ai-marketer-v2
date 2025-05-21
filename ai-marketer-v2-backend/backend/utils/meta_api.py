@@ -155,7 +155,7 @@ def _get_meta_posts(user_id, platform):
         
         media_data = response.json()
         if not media_data.get("data"):
-            return {"error": f"Unable to retrieve posts {response.text}", "status": False}
+            return {"message": [], "status": True}
         
         posts_data = media_data.get("data")
         return {"message": posts_data, "status": True}
@@ -173,7 +173,7 @@ def _get_meta_posts(user_id, platform):
     
     media_data = response.json()
     if not media_data.get("data"):
-        return {"error": f"Unable to retrieve posts {response.text}", "status": False}
+        return {"message": [], "status": True}
     
     posts_data = media_data.get("data")
     return {"message": posts_data, "status": True}
