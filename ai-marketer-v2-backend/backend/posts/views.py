@@ -4,6 +4,7 @@ from datetime import datetime
 from itertools import chain
 
 from celery.result import AsyncResult
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 from PIL import Image
 import requests
@@ -28,6 +29,7 @@ from utils.meta_api import (
 )
 from utils.square_api import get_square_menu_items
 
+User = get_user_model()
 logger = logging.getLogger(__name__)
 
 class PostListCreateView(ListCreateAPIView):
@@ -295,10 +297,12 @@ class PostDetailView(APIView):
             return None, Response({"error": "Post not found"}, status=status.HTTP_404_NOT_FOUND)
         
     def get_meta_comments(self, user_id, platform, post_id):
+        user = User.objects.get(id=user_id)
         #Get Access Token
         token_decoded = get_user_access_token(user_id)
         #Get Facebook page id
         facebookPageID = get_facebook_page_id(token_decoded)
+
         if not facebookPageID:
             return {"error": "Unable to retrieve Facebook Page ID! Maybe reconnect your Facebook or Instagram account in Settings!", "status": False}
         
@@ -329,8 +333,8 @@ class PostDetailView(APIView):
             arr=[]
             for comment in posts_data:
                 if comment.get('message'):
-                    replies = self.get_comment_replies(user,platform,comment['id'],page_access_token)
-                    comment_data= self.get_comment_likes(platform,comment['id'],page_access_token)
+                    replies = self.get_comment_replies(user, platform, comment['id'], page_access_token)
+                    comment_data= self.get_comment_likes(platform, comment['id'], page_access_token)
                     arr.append({'id':comment['id'],'createdTime':comment['created_time'],'from':{'name':comment['from']['name']},'message':comment['message'],'replies':replies,'likeCount':comment_data['count'],'selfLike':comment_data['self_like']})
             logger.error(arr)
             return {"message": arr, "status": True}
@@ -351,7 +355,7 @@ class PostDetailView(APIView):
             arr=[]
             for comment in posts_data:
                 if comment.get('text'):
-                    replies = self.get_comment_replies(user,platform,comment['id'],token_decoded)
+                    replies = self.get_comment_replies(user, platform,comment['id'], token_decoded)
                     arr.append({'id':comment['id'],'createdTime':comment['timestamp'],'from':{'name':'User'},'message':comment['text'],'replies':replies,'like_count':None,'self_like':False})
             logger.error(arr)
             return {"message": arr, "status": True}
