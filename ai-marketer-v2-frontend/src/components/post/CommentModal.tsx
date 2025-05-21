@@ -1,4 +1,4 @@
-import { useState, ChangeEvent } from "react";
+import { useState, ChangeEvent, useRef, useEffect } from "react";
 
 type Comment = {
   id: string;
@@ -29,201 +29,248 @@ const CommentModal: React.FC<ModalProps> = ({
   deleteComment,
   sendReply,
 }) => {
-  const [formData, setFormData] = useState({ text: "" });
+  const [replyText, setReplyText] = useState("");
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [actionInProgress, setActionInProgress] = useState<{
+    type: "like" | "delete" | "reply" | null;
+    commentId: string | null;
+  }>({ type: null, commentId: null });
+  const modalRef = useRef<HTMLDivElement>(null);
 
-  const [visible, setVisible] = useState<boolean[]>();
+  // Close modal when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        modalRef.current &&
+        !modalRef.current.contains(event.target as Node)
+      ) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen, onClose]);
+
+  // Handle escape key to close modal
+  useEffect(() => {
+    const handleEsc = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("keydown", handleEsc);
+    }
+    return () => {
+      document.removeEventListener("keydown", handleEsc);
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
-  const commentStyle: React.CSSProperties = {
-    padding: "8px 0",
-    borderBottom: "1px solid #ddd",
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setReplyText(e.target.value);
   };
 
-  // Handle form input changes
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
+  const handleReply = async (commentId: string) => {
+    if (!replyText.trim()) return;
+
+    setActionInProgress({ type: "reply", commentId });
+    await sendReply(commentId, replyText);
+    setReplyText("");
+    setReplyingTo(null);
+    setActionInProgress({ type: null, commentId: null });
   };
 
-  const handleSubmit = async (id: string, message: string) => {
-    sendReply(id, message);
-    setVisible([]);
+  const handleLike = async (commentId: string) => {
+    setActionInProgress({ type: "like", commentId });
+    await likeComment(commentId);
+    setActionInProgress({ type: null, commentId: null });
   };
 
-  const setReplyVisible = (index: number) => {
-    const localVisibility = [];
-    for (let i = 0; i < comments.length; i++) {
-      localVisibility.push(false);
+  const handleDelete = async (commentId: string) => {
+    setActionInProgress({ type: "delete", commentId });
+    await deleteComment(commentId);
+    setActionInProgress({ type: null, commentId: null });
+  };
+
+  const toggleReplyForm = (commentId: string) => {
+    if (replyingTo === commentId) {
+      setReplyingTo(null);
+      setReplyText("");
+    } else {
+      setReplyingTo(commentId);
     }
-    localVisibility[index] = true;
-    setVisible(localVisibility);
   };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-md max-h-[80vh] overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold">Comments</h2>
+      <div
+        ref={modalRef}
+        className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[80vh] overflow-hidden flex flex-col"
+      >
+        {/* Header */}
+        <div className="p-4 border-b flex justify-between items-center">
+          <h2 className="text-xl font-semibold">Comments</h2>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 transition-colors"
           >
-            <svg
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
+            &times;
           </button>
         </div>
-        <div className="bg-blue-50 p-3 border-b border-blue-100">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg
-                className="h-5 w-5 text-blue-400"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-            <div className="ml-3 flex-1 md:flex md:justify-between">
-              <p className="text-sm text-blue-700">
-                {`Inappropriate or spam comments are automatically filtered and
-                won't be shown.`}
-              </p>
-            </div>
-          </div>
-        </div>
 
-        <div className="flex-1 overflow-y-auto p-4">
-          {isLoaded ? (
-            <ul>
-              {comments.length > 0 ? (
-                comments.map((comment, index) => (
-                  <li key={index} style={commentStyle}>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                      }}
-                    >
-                      <div>
-                        <strong>{comment.username}</strong>
-                        <span
-                          style={{
-                            color: "#777",
-                            fontSize: "0.85em",
-                            marginLeft: "8px",
-                          }}
-                        >
-                          {comment.date}
-                        </span>
-                      </div>
-                      {comment.username != "User" && (
-                        <button
-                          style={{
-                            color: "#aaa",
-                            background: "none",
-                            border: "none",
-                            cursor: "pointer",
-                          }}
-                          onClick={() => deleteComment(comment.id)}
-                        >
-                          🗑️
-                        </button>
-                      )}
+        {/* Comment list with scroll */}
+        <div className="overflow-y-auto flex-grow p-4">
+          {!isLoaded && comments.length === 0 ? (
+            <div className="flex justify-center items-center h-40">
+              <div className="w-10 h-10 border-4 border-gray-300 border-t-indigo-600 rounded-full animate-spin"></div>
+            </div>
+          ) : comments.length > 0 ? (
+            <ul className="space-y-4">
+              {comments.map((comment) => (
+                <li key={comment.id} className="border-b pb-4">
+                  {/* Comment header with username and date */}
+                  <div className="flex justify-between items-center mb-1">
+                    <div className="flex items-center">
+                      <span className="font-medium">{comment.username}</span>
+                      <span className="text-gray-500 text-xs ml-2">
+                        {comment.date}
+                      </span>
                     </div>
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        fontSize: "0.9em",
-                        color: "#444",
-                      }}
-                    >
-                      <span>{comment.text}</span>
+
+                    {comment.username !== "User" && (
                       <button
-                        style={{
-                          marginLeft: "8px",
-                          color: comment.self_like ? "red" : "#aaa",
-                        }}
-                        onClick={() => likeComment(comment.id)}
+                        onClick={() => handleDelete(comment.id)}
+                        disabled={
+                          actionInProgress.type === "delete" &&
+                          actionInProgress.commentId === comment.id
+                        }
+                        className="text-gray-400 hover:text-red-500 transition-colors"
                       >
-                        {comment.self_like
-                          ? "❤️"
-                          : comment.likes != null
-                          ? "🤍"
-                          : ""}{" "}
-                        {comment.likes}
+                        {actionInProgress.type === "delete" &&
+                        actionInProgress.commentId === comment.id ? (
+                          <div className="w-4 h-4 border-2 border-gray-300 border-t-red-500 rounded-full animate-spin"></div>
+                        ) : (
+                          <span className="text-sm">🗑️</span>
+                        )}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Comment text and like button */}
+                  <div className="mb-2">
+                    <p className="text-gray-800 text-sm">{comment.text}</p>
+                  </div>
+
+                  {comment.username !== "User" && (
+                    <div className="flex justify-between items-center">
+                      <button
+                        onClick={() => toggleReplyForm(comment.id)}
+                        className={`text-xs font-medium ${
+                          replyingTo === comment.id
+                            ? "text-indigo-700"
+                            : "text-indigo-600 hover:text-indigo-700"
+                        } transition-colors`}
+                        disabled={comment.username === "User"}
+                      >
+                        {replyingTo === comment.id ? "Cancel" : "Reply"}
+                      </button>
+
+                      <button
+                        onClick={() => handleLike(comment.id)}
+                        disabled={
+                          actionInProgress.type === "like" &&
+                          actionInProgress.commentId === comment.id
+                        }
+                        className="flex items-center space-x-1 text-xs"
+                      >
+                        {actionInProgress.type === "like" &&
+                        actionInProgress.commentId === comment.id ? (
+                          <div className="w-4 h-4 border-2 border-gray-300 border-t-red-500 rounded-full animate-spin mr-1"></div>
+                        ) : (
+                          <span
+                            className={
+                              comment.self_like
+                                ? "text-red-500"
+                                : "text-gray-400"
+                            }
+                          >
+                            {comment.self_like ? "❤️" : "🤍"}
+                          </span>
+                        )}
+                        <span className="text-gray-500">{comment.likes}</span>
                       </button>
                     </div>
-                    {comment.username != "User" && visible && visible[index] ? (
-                      <form
-                        onSubmit={() => handleSubmit(comment.id, formData.text)}
-                      >
+                  )}
+
+                  {/* Reply form */}
+                  {replyingTo === comment.id && (
+                    <div className="mt-3">
+                      <div className="flex items-center">
                         <input
                           type="text"
-                          name="text"
-                          placeholder="Reply"
-                          className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-colors`}
-                          required={true}
-                          value={formData.text}
-                          onChange={handleChange}
+                          value={replyText}
+                          onChange={handleInputChange}
+                          placeholder="Write a reply..."
+                          className="flex-grow p-2 text-sm border rounded-l-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
                         />
-                        <button style={{ color: "blue" }} type="submit">
-                          Reply
-                        </button>
-                      </form>
-                    ) : (
-                      comment.username != "User" && (
                         <button
-                          style={{ color: "blue" }}
-                          onClick={() => setReplyVisible(index)}
+                          onClick={() => handleReply(comment.id)}
+                          disabled={
+                            actionInProgress.type === "reply" &&
+                            actionInProgress.commentId === comment.id
+                          }
+                          className="px-3 py-2 bg-indigo-600 text-white text-sm rounded-r-md hover:bg-indigo-700 transition-colors"
                         >
-                          Reply
+                          {actionInProgress.type === "reply" &&
+                          actionInProgress.commentId === comment.id ? (
+                            <div className="w-4 h-4 border-2 border-indigo-300 border-t-white rounded-full animate-spin"></div>
+                          ) : (
+                            "Send"
+                          )}
                         </button>
-                      )
-                    )}
-                    {comment.replies.map((reply, index) => (
-                      <li key={index} style={{ paddingLeft: "20px" }}>
-                        <strong>
-                          {comment.username == "User"
-                            ? "Someone Replied:"
-                            : "You Replied:"}
-                        </strong>{" "}
-                        <span
-                          style={{ color: "#777", fontSize: "0.85em" }}
-                        ></span>
-                        <br />
-                        <span style={{ fontSize: "0.9em", color: "#444" }}>
-                          {reply}
-                        </span>
-                      </li>
-                    ))}
-                  </li>
-                ))
-              ) : (
-                <p>No comments yet.</p>
-              )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Comment replies */}
+                  {comment.replies.length > 0 && (
+                    <div className="mt-3 pl-4 border-l-2 border-gray-200">
+                      <ul className="space-y-2">
+                        {comment.replies.map((reply, replyIndex) => (
+                          <li
+                            key={`${comment.id}-reply-${replyIndex}`}
+                            className="text-sm"
+                          >
+                            <div className="font-medium text-xs">
+                              {comment.username === "User"
+                                ? "Someone replied:"
+                                : "You replied:"}
+                            </div>
+                            <p className="text-gray-800">{reply}</p>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </li>
+              ))}
             </ul>
           ) : (
-            <p>Loading...</p>
+            <p className="text-center text-gray-500 py-8">No comments yet.</p>
           )}
+        </div>
+
+        {/* Footer with disclaimer */}
+        <div className="p-3 bg-gray-50 border-t text-xs text-gray-500 text-center">
+          {`Inappropriate or spam comments won't be shown`}
         </div>
       </div>
     </div>
