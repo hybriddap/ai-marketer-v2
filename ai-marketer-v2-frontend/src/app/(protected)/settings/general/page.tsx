@@ -146,6 +146,15 @@ export default function GeneralSettings() {
     // Clear previous error for this field
     const newFieldErrors = { ...fieldErrors };
     delete newFieldErrors[fieldName];
+    setFieldErrors(newFieldErrors);
+
+    if (
+      fieldName !== "name" &&
+      editedBusiness &&
+      (!editedBusiness.name || !editedBusiness.name?.trim())
+    ) {
+      return "Business name is required and must be set first";
+    }
 
     switch (fieldName) {
       case "name":
@@ -162,8 +171,6 @@ export default function GeneralSettings() {
         }
         break;
     }
-
-    setFieldErrors(newFieldErrors);
     return null;
   };
 
