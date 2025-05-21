@@ -3,36 +3,29 @@ import { useState } from "react";
 import { Post } from "@/types/post";
 import { POSTS_API } from "@/constants/api";
 import { apiClient } from "@/hooks/dataHooks";
+import { useNotification } from "@/context/NotificationContext";
 import { ConfirmModal } from "@/components/common";
 import { mutate } from "swr";
 
 interface DeletePostHandlerProps {
   selectedPostId: string | undefined;
   onClose: () => void;
-  onSuccess: (message: string) => void;
-  onError?: (message: string) => void;
-  posts: Post[];
+  post: Post | undefined;
 }
 
 export const DeletePostHandler = ({
   selectedPostId,
   onClose,
-  onSuccess,
-  onError,
-  posts,
+  post,
 }: DeletePostHandlerProps) => {
+  const { showNotification } = useNotification();
   const [isLoading, setIsLoading] = useState(false);
-
-  const post = posts.find((p) => p.id === selectedPostId);
   const isInstagramPost = post?.platform?.key === "instagram";
 
   // Generate appropriate message based on post status
   const getDeleteConfirmMessage = () => {
-    if (!post)
-      return "Are you sure you want to delete this post? This action cannot be undone.";
-
-    switch (post.status) {
-      case "Posted":
+    switch (post?.status) {
+      case "Published":
         if (isInstagramPost) {
           return `Instagram doesn't support post deletion through the API. We'll implement this feature when it becomes available. Please wait.`;
         }
@@ -50,22 +43,21 @@ export const DeletePostHandler = ({
     }
   };
 
-  const handleDelete = async (itemId: string | undefined) => {
-    if (!itemId) return;
+  const handleDelete = async () => {
+    if (!selectedPostId) return;
     setIsLoading(true);
 
     try {
-      await apiClient.delete(POSTS_API.DELETE(itemId));
-      onSuccess("Post deleted successfully!");
-      // Trigger global SWR revalidation
+      await apiClient.delete(POSTS_API.DELETE(selectedPostId));
+      showNotification("success", "Post deleted successfully!");
       await mutate(POSTS_API.LIST);
     } catch (error: unknown) {
       if (error instanceof Error) {
-        const parsed = JSON.parse(error.message); // parse the string into an object
-        //console.error("Error deleting post:", parsed.data?.message);
-        if (onError) {
-          onError(`Failed to delete post. ${parsed.data?.message}.`);
-        }
+        const parsed = JSON.parse(error.message);
+        showNotification(
+          "error",
+          `Failed to delete post. ${parsed.data?.message}.`
+        );
       }
     } finally {
       setIsLoading(false);
@@ -79,10 +71,10 @@ export const DeletePostHandler = ({
       title="Delete Confirmation"
       message={getDeleteConfirmMessage()}
       confirmButtonText={isLoading ? "Deleting..." : "Delete"}
-      type={isInstagramPost && post.status === "Posted" ? "info" : "warning"}
+      type={isInstagramPost && post.status === "Published" ? "info" : "warning"}
       itemId={selectedPostId}
       onClose={onClose}
-      onConfirm={() => handleDelete(selectedPostId)}
+      onConfirm={() => handleDelete()}
     />
   );
 };

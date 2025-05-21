@@ -62,9 +62,6 @@ def sync_posts_from_meta(user_id, business, platform):
         return get_posts
     
     posts_data = get_posts.get("message")
-    if not posts_data:
-        logger.warning(f"No posts data returned for {platform}")
-        return Post.objects.none()
 
     for post_data in posts_data:
         link=post_data.get("permalink") if platform=='instagram' else post_data.get("permalink_url")
@@ -108,7 +105,8 @@ def sync_posts_from_meta(user_id, business, platform):
         )
         post.save()
 
-    _remove_deleted_posts(platform,posts_data,business)
+    _remove_deleted_posts(platform, posts_data, business)
+
     return {"message": "Posts synced successfully", "status": True}
 
 def _returnInstagramDetails(facebookPageID, access_token):
@@ -201,6 +199,7 @@ def _remove_deleted_posts(platform, posts_data, business):
     ).exclude(
         link__in=links
     )
+    
     #Fetch posted posts
     posts_in_links = Post.objects.filter(
         business=business,
@@ -211,14 +210,25 @@ def _remove_deleted_posts(platform, posts_data, business):
     for post in posts_not_in_links:
         if (post.status=='Published'):
             post.delete()
-
-    for post in posts_not_in_links:
-        if(post.scheduled_at):
+        elif(post.status=='Scheduled'):
             if(post.scheduled_at < timezone.now()):
-                post.status='Failed'
-                post.save()
-        for post2 in posts_in_links:
-            if(post.caption==post2.caption):
-                if abs((post.scheduled_at - post2.posted_at).total_seconds()) <= 60:
-                    logger.error("Same post found!")
-                    post.delete()
+                post_succeeded = False
+                for post2 in posts_in_links:
+                    if(_normalize_caption(post.caption) == _normalize_caption(post2.caption)):
+                        time_diff = abs((post.scheduled_at - post2.posted_at).total_seconds())
+                        if time_diff <= 60:
+                            post.delete()
+                            post_succeeded = True
+                            break
+                            
+                if not post_succeeded:
+                    post.status = 'Failed'
+                    post.save()
+
+def _normalize_caption(caption):
+    if caption is None:
+        return ""
+    
+    normalized = caption.replace('\r\n', ' ').replace('\n', ' ').replace('\r', ' ')
+    normalized = ' '.join(normalized.split())
+    return normalized.strip()

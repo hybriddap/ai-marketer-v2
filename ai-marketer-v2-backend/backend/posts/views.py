@@ -388,12 +388,10 @@ class PostDetailView(APIView):
                 # Handle error response
                 logger.error(f"Error fetching comments likes {response.text}")
                 return {'count':None,'self_like':False}
-                #return {"error": f"Error fetching comments likes. {response.text}", "status": False}
             media_data = response.json()
             if not media_data.get("summary"):
                 logger.error(f"Error retrieving comments likes {response.text}")
                 return {'count':0,'self_like':False}
-                #return {"error": f"Error retrieving comments likes {response.text}", "status": False}
             posts_data = media_data.get("summary")
             
             return {'count':posts_data['total_count'],'self_like':posts_data['has_liked']}
@@ -413,18 +411,15 @@ class PostDetailView(APIView):
                 # Handle error response
                 logger.error(f"Error fetching comments {response.text}")
                 return []
-                #return {"error": f"Error fetching comments. {response.text}", "status": False}
             media_data = response.json()
             if not media_data.get("data"):
                 logger.error(f"Error retrieving comments {response.text}")
                 return []
-                #return {"error": f"Error retrieving comments {response.text}", "status": False}
             posts_data = media_data.get("data")
 
             replies=[]
             for comment in posts_data:
                 if comment.get('message'):
-                    #logger.error(linked_platform.first().username)
                     #Get only replies from yourself
                     if (comment['from']['name']==linked_platform.first().username):
                         replies.append(comment.get('message'))
@@ -438,12 +433,10 @@ class PostDetailView(APIView):
                 # Handle error response
                 logger.error(f"Error fetching comments {response.text}")
                 return []
-                #return {"error": f"Error fetching comments. {response.text}", "status": False}
             media_data = response.json()
             if not media_data.get("data"):
                 logger.error(f"Error retrieving comments {response.text}")
                 return []
-                #return {"error": f"Error retrieving comments {response.text}", "status": False}
             posts_data = media_data.get("data")
 
             replies=[]

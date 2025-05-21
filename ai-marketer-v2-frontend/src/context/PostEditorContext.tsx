@@ -493,7 +493,7 @@ export const PostEditorProvider = ({
       await apiClient.patch(
         POSTS_API.UPDATE(selectedPost.id),
         formData,
-        {},
+        { timeout: 60000 },
         true // isFormData flag
       );
 

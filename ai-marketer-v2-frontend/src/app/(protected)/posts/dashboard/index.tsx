@@ -161,9 +161,7 @@ export const PostsDashboardView = ({
       <DeletePostHandler
         selectedPostId={selectedPostId}
         onClose={() => setSelectedPostId(undefined)}
-        onSuccess={(message) => showNotification("success", message)}
-        onError={(message) => showNotification("error", message)}
-        posts={posts}
+        post={posts.find((p) => p.id === selectedPostId)}
       />
 
       {/* Display sync errors if present */}

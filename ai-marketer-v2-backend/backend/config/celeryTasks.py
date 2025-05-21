@@ -33,7 +33,7 @@ def returnInstagramDetails(facebookPageID,access_token):
     return insta_account_data.get("id") #return the instagram account id
 
 def publishToMeta(platform, caption, image_url, token_decoded):
-    facebookPageID=get_facebook_page_id(token_decoded)
+    facebookPageID = get_facebook_page_id(token_decoded)
     if not facebookPageID:
         return {"error": "Unable to retrieve Facebook Page ID! Maybe reconnect your Facebook or Instagram account in Settings!", "status": False}
 
@@ -41,15 +41,19 @@ def publishToMeta(platform, caption, image_url, token_decoded):
     if platform == 'facebook':
         #Get page access token
         url = f'https://graph.facebook.com/v22.0/me/accounts?access_token={token_decoded}'
+        
         response = requests.get(url)
         if response.status_code != 200:
             # Handle error response
             return {"error": f"Unable to retrieve page access token. {response.text}", "status": False}
+        
         metasData = response.json()
         if not metasData.get("data"):
             return {"error": "Unable to retrieve page access token 2", "status": False}
+        
         #Get the page access token
         page_access_token = metasData.get("data")[0]["access_token"]
+        
         # Create media object for Facebook
         url = f'https://graph.facebook.com/v22.0/{facebookPageID}/photos'
         data = {
@@ -57,29 +61,30 @@ def publishToMeta(platform, caption, image_url, token_decoded):
             "message": caption,
             "access_token": page_access_token
         }
-        # if scheduled_at:
-        #     dt = datetime.fromisoformat(scheduled_at.replace("Z", "+00:00"))
-        #     unix_timestamp = int(dt.timestamp())
-        #     data.update({"published": 'false',"scheduled_publish_time": unix_timestamp})
 
         response = requests.post(url, data=data)
         if response.status_code != 200:
             # Handle error response
             return {"error": f"Unable to create Media Obj for Facebook. {response.text}", "status": False}
+        
         media_data = response.json()
         if not media_data.get("post_id"):
             return {"error": "Unable to retrieve post ID", "status": False}
+        
         post_id = media_data.get("post_id")
 
         #Get URL to the post
         url = f'https://graph.facebook.com/v22.0/{post_id}?fields=permalink_url&access_token={page_access_token}'
+        
         response = requests.get(url)
         if response.status_code != 200:
             # Handle error response
             return {"error": "Unable to get post url", "status": False}
+        
         post_data = response.json()
         if not post_data.get("permalink_url"):
             return {"error": "Unable to retrieve post url from json", "status": False}
+        
         post_url = post_data.get("permalink_url")
         
         return {"message": post_url, "status": True}
@@ -132,9 +137,9 @@ def publishToMeta(platform, caption, image_url, token_decoded):
     return {"message": post_url, "status": True}
 
 @shared_task
-def publish_to_meta_task(platform,caption,image,token):
-    logger.error("Scheduled task recieved!")
-    error=publishToMeta(platform,caption,image,token)
+def publish_to_meta_task(platform, caption, image, token):
+    logger.info("Scheduled task recieved!")
+    error = publishToMeta(platform, caption, image, token)
     if(error.get('error')):
         logger.error(error.get('error'))
-    logger.error(f"Scheduled task ran at: {datetime.now()}")
+    logger.info(f"Scheduled task ran at: {datetime.now()}")
