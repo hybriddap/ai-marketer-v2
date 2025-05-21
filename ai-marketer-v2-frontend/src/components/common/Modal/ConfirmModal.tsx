@@ -1,6 +1,5 @@
-// src/components/common/ConfirmModal.tsx
-import { Dialog } from "@headlessui/react";
-import { useState, useEffect } from "react";
+// src/components/common/Modal/ConfirmModal.tsx
+import React, { useEffect, useRef } from "react";
 import {
   FaExclamationTriangle,
   FaInfoCircle,
@@ -10,7 +9,7 @@ import {
 export type ConfirmType = "alert" | "warning" | "info";
 
 interface ConfirmModalProps {
-  isOpen?: boolean;
+  isOpen: boolean;
   title?: string;
   message: string;
   confirmButtonText?: string;
@@ -22,139 +21,156 @@ interface ConfirmModalProps {
   children?: React.ReactNode;
 }
 
-export const ConfirmModal = ({
-  isOpen = true,
+export const ConfirmModal: React.FC<ConfirmModalProps> = ({
+  isOpen,
   title = "Confirmation",
   message,
   confirmButtonText = "Continue",
   cancelButtonText = "Cancel",
   type = "warning",
-  itemId = undefined,
+  itemId,
   onConfirm,
   onClose,
   children,
-}: ConfirmModalProps) => {
-  // Store the message in local state to prevent it from changing during animations
-  const [localTitle, setLocalTitle] = useState(title);
-  const [localMessage, setLocalMessage] = useState(message);
+}) => {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const isSubmitting = useRef(false);
 
-  // Update local state when props change and modal is open or just opened
+  // Handle click outside
   useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        modalRef.current &&
+        !modalRef.current.contains(event.target as Node)
+      ) {
+        onClose();
+      }
+    };
+
     if (isOpen) {
-      setLocalTitle(title);
-      setLocalMessage(message);
+      document.addEventListener("mousedown", handleClickOutside);
+      // Prevent scroll on body when modal is open
+      document.body.style.overflow = "hidden";
     }
-  }, [isOpen, message, title]);
 
-  // Prevent action handlers from firing multiple times
-  const [isSubmitting, setIsSubmitting] = useState(false);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.body.style.overflow = "";
+      isSubmitting.current = false; // Reset on unmount
+    };
+  }, [isOpen, onClose]);
 
-  const handleConfirm = () => {
-    if (isSubmitting) return;
-    if (!onConfirm) return;
-    setIsSubmitting(true);
-    onConfirm(itemId);
-  };
-
-  const handleClose = () => {
-    if (isSubmitting) return;
-    setIsSubmitting(true);
-    onClose();
-  };
-
-  // Reset submitting state when modal closes
+  // Handle ESC key press
   useEffect(() => {
-    if (!isOpen) {
-      setTimeout(() => {
-        setIsSubmitting(false);
-      }, 300);
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("keydown", handleEscKey);
     }
-  }, [isOpen]);
 
-  // Type-based styling and icons
-  const typeStyles = {
-    alert: {
-      icon: <FaExclamationTriangle className="h-5 w-5 text-red-500" />,
-      headerBg: "bg-red-50",
-      headerText: "text-red-700",
-      confirmBg: "bg-red-600 hover:bg-red-700 active:bg-red-800",
-    },
-    warning: {
-      icon: <FaQuestion className="h-5 w-5 text-orange-500" />,
-      headerBg: "bg-orange-50",
-      headerText: "text-orange-700",
-      confirmBg: "bg-orange-600 hover:bg-orange-700 active:bg-orange-800",
-    },
-    info: {
-      icon: <FaInfoCircle className="h-5 w-5 text-blue-500" />,
-      headerBg: "bg-blue-50",
-      headerText: "text-blue-700",
-      confirmBg: "bg-blue-600 hover:bg-blue-700 active:bg-blue-800",
-    },
-  };
-
-  const { icon, headerBg, headerText, confirmBg } = typeStyles[type];
+    return () => {
+      document.removeEventListener("keydown", handleEscKey);
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
+  // Type config for icons and styles
+  const typeConfig = {
+    alert: {
+      icon: <FaExclamationTriangle className="h-6 w-6 text-red-500" />,
+      confirmButtonClass: "bg-red-600 hover:bg-red-700 text-white",
+      showConfirmButton: false,
+    },
+    warning: {
+      icon: <FaQuestion className="h-6 w-6 text-orange-500" />,
+      confirmButtonClass: "bg-black hover:bg-gray-800 text-white",
+      showConfirmButton: true,
+    },
+    info: {
+      icon: <FaInfoCircle className="h-6 w-6 text-blue-500" />,
+      confirmButtonClass: "bg-black hover:bg-gray-800 text-white",
+      showConfirmButton: false,
+    },
+  };
+
+  const { icon, confirmButtonClass, showConfirmButton } = typeConfig[type];
+
+  const handleConfirm = () => {
+    if (isSubmitting.current || !onConfirm) return;
+    isSubmitting.current = true;
+    onConfirm(itemId);
+  };
+
   return (
-    <Dialog
-      className="relative z-50"
-      open={isOpen}
-      onClose={handleClose}
-      static
-    >
-      {/* Background overlay with increased blur */}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50">
       <div
-        className="fixed inset-0 bg-black bg-opacity-40 backdrop-blur-sm"
-        aria-hidden="true"
-      />
+        ref={modalRef}
+        className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 transform transition-opacity duration-300 opacity-100"
+      >
+        <div className="flex items-center mb-4">
+          <div className="mr-3 flex-shrink-0">{icon}</div>
+          <h3 className="text-lg font-medium text-gray-900">{title}</h3>
+        </div>
 
-      {/* Center container with responsive width */}
-      <div className="fixed inset-0 flex items-center justify-center p-4">
-        <Dialog.Panel className="w-full max-w-xs sm:max-w-sm bg-white shadow-xl rounded-2xl overflow-hidden">
-          {/* Header with colored background based on type */}
-          <div className={`px-4 py-3 ${headerBg} flex items-center`}>
-            <div className="mr-2 flex-shrink-0">{icon}</div>
-            <Dialog.Title className={`text-base font-semibold ${headerText}`}>
-              {localTitle}
-            </Dialog.Title>
-          </div>
+        <div className="mb-5">
+          <p className="text-sm text-gray-600 whitespace-pre-line">{message}</p>
+          {children}
+        </div>
 
-          {/* Message body with proper padding */}
-          <div className="px-4 py-3 text-center">
-            <p className="text-sm text-gray-700 whitespace-pre-line">
-              {localMessage}
-            </p>
-            {children}
-          </div>
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            className="px-4 py-2 text-sm font-medium border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 bg-white text-gray-700"
+            onClick={onClose}
+          >
+            {cancelButtonText}
+          </button>
 
-          {/* Buttons with full width on mobile */}
-          <div className="px-4 py-3 bg-gray-100 flex flex-col sm:flex-row-reverse gap-2">
-            {/* Confirm button */}
-            {type !== "alert" && (
-              <button
-                type="button"
-                className={`w-full sm:w-auto px-4 py-2 text-sm font-medium text-white rounded-lg ${confirmBg}`}
-                onClick={handleConfirm}
-                disabled={isSubmitting}
-              >
-                {confirmButtonText}
-              </button>
-            )}
-
-            {/* Cancel button */}
+          {showConfirmButton && onConfirm && (
             <button
               type="button"
-              className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 "
-              onClick={handleClose}
-              disabled={isSubmitting}
+              className={`px-4 py-2 text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black ${confirmButtonClass} ${
+                isSubmitting.current ? "opacity-75 cursor-not-allowed" : ""
+              }`}
+              onClick={handleConfirm}
+              disabled={isSubmitting.current}
             >
-              {cancelButtonText}
+              {isSubmitting.current ? (
+                <span className="flex items-center">
+                  <svg
+                    className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Processing...
+                </span>
+              ) : (
+                confirmButtonText
+              )}
             </button>
-          </div>
-        </Dialog.Panel>
+          )}
+        </div>
       </div>
-    </Dialog>
+    </div>
   );
 };
