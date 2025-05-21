@@ -622,8 +622,10 @@ class PostDetailView(APIView):
         # Handle image updates if provided
         image_url=None
         if 'image' in request.FILES:
-            post.image = request.FILES['image']
-        image_url=self.upload_image_file(post.image,request.data.get("aspect_ratio","4/5"))
+            image_url=self.upload_image_file(request.FILES['image'], request.data.get("aspect_ratio","4/5"))
+            post.image = image_url
+        else:
+            image_url = post.image
         
         access_token = get_user_access_token(request.user.id)
 

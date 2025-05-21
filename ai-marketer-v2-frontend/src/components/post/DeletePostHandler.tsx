@@ -31,12 +31,11 @@ export const DeletePostHandler = ({
     if (!post)
       return "Are you sure you want to delete this post? This action cannot be undone.";
 
-    if (isInstagramPost) {
-      return `Instagram doesn't support post deletion through the API. We'll implement this feature when it becomes available. Please wait.`;
-    }
-
     switch (post.status) {
       case "Posted":
+        if (isInstagramPost) {
+          return `Instagram doesn't support post deletion through the API. We'll implement this feature when it becomes available. Please wait.`;
+        }
         return `Are you sure you want to delete this posted content?
         This will remove it from social media platforms.`;
       case "Scheduled":
@@ -80,7 +79,7 @@ export const DeletePostHandler = ({
       title="Delete Confirmation"
       message={getDeleteConfirmMessage()}
       confirmButtonText={isLoading ? "Deleting..." : "Delete"}
-      type={isInstagramPost ? "info" : "warning"}
+      type={isInstagramPost && post.status === "Posted" ? "info" : "warning"}
       itemId={selectedPostId}
       onClose={onClose}
       onConfirm={() => handleDelete(selectedPostId)}
