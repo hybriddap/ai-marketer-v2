@@ -24,7 +24,11 @@ class Promotion(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Promotion ({self.get_category_display()}) - {self.business.name}"
+        categories = ", ".join([cat.label for cat in self.categories.all()])
+        if categories:
+            return f"Promotion ({categories}) - {self.business.name}"
+        else:
+            return f"Promotion - {self.business.name}"
 
     class Meta:
         ordering = ["-created_at"]
