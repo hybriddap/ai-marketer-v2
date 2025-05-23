@@ -1,18 +1,21 @@
 const features = [
   {
     title: "AI Caption Generator",
-    description: "Upload an image, and AI will create the perfect caption.",
+    description:
+      "Upload product photos and get engaging captions that match your business vibe and target customers.",
     icon: "🤖",
   },
   {
-    title: "Hashtag Recommendations",
-    description: "Get the best trending hashtags for your posts.",
-    icon: "🔥",
+    title: "Smart Promotion Suggestions",
+    description:
+      "AI analyzes your sales data to suggest effective promotions for your best and worst-selling products.",
+    icon: "📊",
   },
   {
-    title: "Promotion Suggestions",
-    description: "AI suggests effective promotions to increase engagement.",
-    icon: "📣",
+    title: "Multi-Platform Publishing",
+    description:
+      "Schedule and publish content across Instagram and Facebook with Square POS integration.",
+    icon: "📱",
   },
 ];
 
@@ -21,7 +24,7 @@ export default function Features() {
     <section className="py-16 bg-gradient-to-r from-indigo-50 to-indigo-200 text-black">
       <div className="max-w-6xl mx-auto px-6 text-center">
         <h2 className="text-3xl font-bold text-indigo-900 mb-10">
-          Why Choose AKA AI Marketer?
+          {`Everything You Need to Grow Your Business's Social Presence`}
         </h2>
         <div className="mt-10 grid md:grid-cols-3 gap-8">
           {features.map((feature, index) => (

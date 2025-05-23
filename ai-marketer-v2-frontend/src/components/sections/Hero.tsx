@@ -5,15 +5,16 @@ export default function Hero() {
     <section className="pt-32 pb-20 bg-gradient-to-r from-indigo-500 to-indigo-700 text-white text-center relative">
       <div className="max-w-4xl mx-auto px-6">
         <p className="text-sm font-semibold uppercase tracking-wide text-indigo-200">
-          AI-Powered Marketing
+          For Small Businesses
         </p>
 
         <h1 className="text-4xl md:text-5xl font-extrabold leading-tight mt-4">
-          Boost Your Social Media with AI Captions
+          Automate Your Social Media with AI-Powered Marketing
         </h1>
 
         <p className="text-base md:text-lg text-indigo-100 mt-4">
-          Let AI analyze your images and generate engaging captions instantly.
+          Upload product photos, get engaging captions, manage promotions, and
+          schedule posts across Instagram and Facebook - all powered by AI.
         </p>
 
         <div className="mt-8">
