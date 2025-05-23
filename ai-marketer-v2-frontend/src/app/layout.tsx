@@ -6,6 +6,57 @@ import NavbarWrapper from "@/components/layout/NavbarWrapper";
 import Footer from "@/components/layout/Footer";
 import { NotificationProvider } from "@/context/NotificationContext";
 import { Suspense } from "react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "AI Marketer | AKA Studio",
+  description:
+    "AI-powered social media manager that generates captions, schedules posts, and suggests promotions based on your business data. Automate your Facebook and Instagram marketing with intelligent AI assistance.",
+  keywords: [
+    "AI Marketing",
+    "Social Media Management",
+    "Marketing Automation",
+    "Content Creation",
+    "Caption Generation",
+    "Business Marketing",
+  ],
+  authors: [{ name: "AKA Studio" }],
+  creator: "AKA Studio",
+  publisher: "AKA Studio",
+  robots: {
+    index: true,
+    follow: true,
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://ai-marketer-v2.vercel.app",
+    siteName: "AI Marketer",
+    title: "AI Marketer | AKA Studio",
+    description:
+      "AI-powered social media manager that generates captions, schedules posts, and suggests promotions based on your business data. Automate your Facebook and Instagram marketing with intelligent AI assistance.",
+    images: [
+      {
+        url: "/AKA.png",
+        width: 1200,
+        height: 630,
+        alt: "AI Marketer - AI-powered marketing automation",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AI Marketer | AKA Studio",
+    description:
+      "AI-powered social media manager that generates captions, schedules posts, and suggests promotions based on your business data. Automate your Facebook and Instagram marketing with intelligent AI assistance.",
+    images: ["/AKA.png"],
+  },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+  },
+};
 
 export default function RootLayout({
   children,
