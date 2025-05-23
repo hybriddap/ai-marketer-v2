@@ -40,6 +40,11 @@ services:
           type: redis
           property: connectionString
 
+  - name: redis
+    type: redis
+    plan: free
+    ipAllowList: []
+
 databases:
   - name: postgres
     plan: free
