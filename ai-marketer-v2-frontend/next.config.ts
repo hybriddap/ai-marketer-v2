@@ -10,6 +10,14 @@ const nextConfig: NextConfig = {
       : [],
     unoptimized: isDev,
   },
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: "https://backend-0vrq.onrender.com/api/:path*/",
+      },
+    ];
+  },
 };
 
 export default nextConfig;

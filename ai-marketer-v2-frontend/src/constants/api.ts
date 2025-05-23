@@ -1,9 +1,10 @@
 // src/constants/api.ts
 
 // Base API URL
-export const BASE_URL = process.env.NEXT_PUBLIC_API_URL
-  ? `${process.env.NEXT_PUBLIC_API_URL}/api`
-  : "https://localhost:8000/api";
+// export const BASE_URL = process.env.NEXT_PUBLIC_API_URL
+//   ? `${process.env.NEXT_PUBLIC_API_URL}/api`
+//   : "https://localhost:8000/api";
+export const BASE_URL = "/api"; // refer to the vercel.json file for the production URL
 
 // Health Check API Endpoint (for backend status verification)
 export const HEALTH_CHECK_API = `${BASE_URL}/health/`;
