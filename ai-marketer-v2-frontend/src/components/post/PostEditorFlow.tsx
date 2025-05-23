@@ -49,6 +49,13 @@ export const PostEditorFlow = () => {
   const [isLastStep, setIsLastStep] = useState<boolean>(false);
 
   useEffect(() => {
+    document.body.classList.add("modal-open");
+    return () => {
+      document.body.classList.remove("modal-open");
+    };
+  }, []);
+
+  useEffect(() => {
     setIsLastStep(stepState.stepName === StepNames[StepNames.length - 1]);
   }, [stepState.stepName]);
 

@@ -5,3 +5,32 @@
 body {
   @apply bg-background text-foreground transition-colors duration-300;
 }
+
+@media (max-width: 768px) {
+  input[type="date"] {
+    -webkit-appearance: none;
+    -moz-appearance: textfield;
+    position: relative !important;
+    z-index: 9999 !important;
+    transform: none !important;
+    clip-path: none !important;
+    overflow: visible !important;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10000;
+    opacity: 1;
+    cursor: pointer;
+  }
+}
+
+body.modal-open {
+  overflow: hidden !important;
+  position: fixed !important;
+  width: 100% !important;
+  height: 100% !important;
+}

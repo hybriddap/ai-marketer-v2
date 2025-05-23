@@ -118,7 +118,7 @@ const PromotionsDashboard = () => {
       <Header
         title="Promotions"
         actionButton={{
-          label: isGenerating ? "Generating..." : "Generate Suggestions",
+          label: isGenerating ? "Generating..." : "AI Suggestions",
           onClick: handleGenerateSuggestions,
           isDisabled: isGenerating || !suggestionData.hasSalesData,
           tooltipContent: !suggestionData.hasSalesData

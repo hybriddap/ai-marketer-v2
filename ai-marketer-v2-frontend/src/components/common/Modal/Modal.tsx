@@ -1,8 +1,8 @@
 // components/common/Modal.tsx
 "use client";
 
-import { useEffect } from "react";
 import clsx from "clsx";
+import { useEffect } from "react";
 
 export default function Modal({
   isOpen,
@@ -22,17 +22,15 @@ export default function Modal({
     }
   };
 
-  // Prevent background scrolling when modal is open
   useEffect(() => {
     if (isOpen) {
-      document.body.style.overflow = "hidden";
+      document.body.classList.add("modal-open");
     } else {
-      document.body.style.overflow = "";
+      document.body.classList.remove("modal-open");
     }
 
-    // Clean up on unmount or when modal is closed
     return () => {
-      document.body.style.overflow = "";
+      document.body.classList.remove("modal-open");
     };
   }, [isOpen]);
 

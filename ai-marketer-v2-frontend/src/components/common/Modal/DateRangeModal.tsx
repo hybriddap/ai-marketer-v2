@@ -1,5 +1,5 @@
 // src/components/common/Modal/DateRangeModal.tsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Modal from "./Modal";
 
 interface DateRangeModalProps {
@@ -30,6 +30,18 @@ export const DateRangeModal = ({
   );
 
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.classList.add("modal-open");
+    } else {
+      document.body.classList.remove("modal-open");
+    }
+
+    return () => {
+      document.body.classList.remove("modal-open");
+    };
+  }, [isOpen]);
 
   const handleSubmit = () => {
     if (!startDate) {
@@ -85,7 +97,12 @@ export const DateRangeModal = ({
             className="w-full p-2 border rounded"
             value={endDate || ""}
             onChange={(e) => {
-              setEndDate(e.target.value);
+              const newEndDate = e.target.value;
+              if (newEndDate < startDate) {
+                setError("End date cannot be earlier than start date.");
+                return;
+              }
+              setEndDate(newEndDate);
               setError("");
             }}
             disabled={noEndDate}
