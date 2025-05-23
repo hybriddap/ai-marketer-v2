@@ -47,6 +47,9 @@ if [ "$DJANGO_ENV" = "development" ]; then
   fi
 fi
 
+python manage.py create_admin
+echo "✓ Admin user setup completed"
+
 echo "✅ Server starting"
 
 exec "$@"
