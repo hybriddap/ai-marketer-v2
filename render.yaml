@@ -39,6 +39,10 @@ services:
           name: redis
           type: redis
           property: connectionString
+          
+  - name: redis
+    type: redis
+    plan: free
 
 databases:
   - name: postgres
