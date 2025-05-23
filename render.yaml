@@ -44,8 +44,8 @@ services:
     type: redis
     plan: free
     ipAllowList:
-      - source: backend
-        description: Allow backend to access Redis
+      - source: 0.0.0.0/0
+        description: Allow all IPs
 
 databases:
   - name: postgres
