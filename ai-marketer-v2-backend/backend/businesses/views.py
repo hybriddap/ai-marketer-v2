@@ -1,13 +1,23 @@
 # backend/businesses/views.py
+import base64
+import json
 import logging
 import uuid
+import time
+import hmac
+import hashlib
 from collections import defaultdict
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.shortcuts import redirect
 from rest_framework import status, viewsets
-from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import (
+    action,
+    api_view,
+    permission_classes,
+)
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -27,6 +37,7 @@ from utils.square_api import (
     process_square_item,
 )
 
+User = get_user_model()
 logger = logging.getLogger(__name__)
 
 class DashboardView(APIView):
@@ -174,6 +185,91 @@ class BusinessDetailView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def square_oauth_callback(request):
+    """Create Square integration for the authenticated user's business."""
+    logger.info("=== Square OAuth Callback (Sessionless) ===")
+
+    received_state = request.query_params.get('state')
+    if not received_state:
+        logger.error("No state parameter received")
+        return redirect(f"{settings.FRONTEND_BASE_URL}/settings/square?error=missing_state")
+    
+    try:
+        padded_state = received_state + '=' * (4 - len(received_state) % 4)
+        decoded_state = json.loads(base64.urlsafe_b64decode(padded_state).decode())
+
+        logger.info(f"Decoded state keys: {list(decoded_state.keys())}")
+    
+    except Exception as e:
+        logger.error(f"State decoding error: {e}")
+        return redirect(f"{settings.FRONTEND_BASE_URL}/settings/square?error=invalid_state")
+    
+    is_valid, error_message = verify_secure_state(decoded_state)
+    
+    if not is_valid:
+        logger.error(f"State verification failed: {error_message}")
+        return redirect(f"{settings.FRONTEND_BASE_URL}/settings/square?error=state_invalid")
+    
+    logger.info("✅ State verification passed")
+    
+    user_id = decoded_state.get('user_id')
+    
+    error = request.query_params.get('error')
+    if error:
+        error_description = request.query_params.get('error_description')
+        logger.error(f"OAuth error: {error} - {error_description}")
+
+        if error == 'access_denied' and error_description == 'user_denied':
+            return redirect(f"{settings.FRONTEND_BASE_URL}/settings/square?error=user_denied")
+        else:
+            return redirect(f"{settings.FRONTEND_BASE_URL}/settings/square?error={error}&error_description={error_description}")
+        
+    # Get the authorization code
+    code = request.query_params.get('code')
+    if not code:
+        logger.error("No authorization code received")
+        return redirect(f"{settings.FRONTEND_BASE_URL}/settings/square?error=missing_code")
+
+    try:
+        user = User.objects.get(id=user_id)
+        business = Business.objects.filter(owner=user).first()
+        
+        if not business:
+            logger.error(f"Business not found for user {user_id}")
+            return redirect(f"{settings.FRONTEND_BASE_URL}/settings/square?error=business_not_found")
+        
+        logger.info(f"Found user: {user.email}, business: {business.name}")
+
+    except User.DoesNotExist:
+        logger.error(f"User {user_id} not found")
+        return redirect(f"{settings.FRONTEND_BASE_URL}/settings/square?error=user_not_found")
+    
+    # Exchange code for access token
+    logger.info("Exchanging code for access token")
+    token_response = exchange_code_for_token(code)
+    
+    if 'access_token' not in token_response:
+        logger.error(f"Token exchange failed: {token_response}")
+        return redirect(f"{settings.FRONTEND_BASE_URL}/settings/square?error=token_error")
+
+    # Save the access token to the business
+    business.square_access_token = token_response['access_token']
+    business.save()
+
+    logger.info(f"✅ Access token saved for business: {business.name}")
+
+    # After saving access token, fetch and save the sales data
+    try:
+        fetch_and_save_square_sales_data(business)
+        logger.info("✅ Sales data fetched successfully")
+    except Exception as e:
+        logger.error(f"⚠️ Error fetching Square sales data: {e}")
+
+    logger.info("🎉 Square OAuth callback completed successfully")
+    return redirect(f"{settings.FRONTEND_BASE_URL}/settings/square?success=true")
+
 class SquareViewSet(viewsets.ViewSet):
     """
     ViewSet for managing Square integration.
@@ -204,61 +300,22 @@ class SquareViewSet(viewsets.ViewSet):
     def connect(self, request):
         """Connect Square integration for the authenticated user's business."""
         auth_url_values = get_auth_url_values()
-        request.session['square_oauth_state'] = auth_url_values['state']
+
+        secure_state = generate_secure_state(request.user.id)
+        
+        encoded_state = base64.urlsafe_b64encode(json.dumps(secure_state).encode()).decode().rstrip("=")
+
+        logger.info(f"Generated secure state for user {request.user.id}")
 
         auth_url = (
             f"{settings.SQUARE_BASE_URL}/oauth2/authorize"
             f"?client_id={auth_url_values['app_id']}"
             f"&scope=MERCHANT_PROFILE_READ+ITEMS_READ+ITEMS_WRITE+ORDERS_READ"
-            f"&session=false&state={auth_url_values['state']}"
+            f"&session=false&state={encoded_state}"
             f"&redirect_uri={auth_url_values['redirect_uri']}"
         )
         
         return Response({"link": auth_url}, status=status.HTTP_200_OK)
-
-    @action(detail=False, methods=['get'])
-    def callback(self, request):
-        """Create Square integration for the authenticated user's business."""
-        received_state = request.query_params.get('state')
-        saved_state = request.session.get('square_oauth_state')
-
-        # Ensure state matches and prevent CSRF
-        if not saved_state or received_state != saved_state:
-            return redirect(f"{settings.FRONTEND_BASE_URL}/settings/square?error=state_mismatch")        
-        error = request.query_params.get('error')
-        
-        # Handle error scenarios
-        if error:
-            error_description = request.query_params.get('error_description')
-            if ('access_denied' == error and 'user_denied' == error_description):
-                return redirect(f"{settings.FRONTEND_BASE_URL}/settings/square?error=user_denied")
-            else:
-                return redirect(f"{settings.FRONTEND_BASE_URL}/settings/square?error=${error}&error_description=${error_description}")
-            
-        # Get the authorization code
-        code = request.query_params.get('code')
-        if not code:
-            return redirect(f"{settings.FRONTEND_BASE_URL}/settings/square?error=missing_code")
-
-        # Exchange code for access token
-        token_response = exchange_code_for_token(code)
-        if 'access_token' not in token_response:
-            logger.info(f"Error: {token_response}")
-            return redirect(f"{settings.FRONTEND_BASE_URL}/settings/square?error=token_error")
-
-        # Save the access token to the business
-        access_token = token_response['access_token']
-        business = Business.objects.filter(owner=request.user).first()
-        business.square_access_token = access_token
-        business.save()
-
-        # After saving access token, fetch and save the sales data
-        fetch_and_save_square_sales_data(business)
-
-        # After successful connection, pop the state from the session
-        request.session.pop('square_oauth_state', None)
-        
-        return redirect(f"{settings.FRONTEND_BASE_URL}/settings/square?success=true")
     
     @action(detail=False, methods=['post'])
     def disconnect(self, request):
@@ -421,4 +478,53 @@ class SquareViewSet(viewsets.ViewSet):
         except Exception as e:
             logger.error(f"Square item update error: {e}")
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+def generate_secure_state(user_id):
+    timestamp = str(int(time.time()))
+    message = f"{user_id}:{timestamp}"
+    signature = hmac.new(
+        settings.SECRET_KEY.encode(),
+        message.encode(),
+        hashlib.sha256
+    ).hexdigest()
+    return {
+        'user_id': user_id,
+        'timestamp': timestamp,
+        'signature': signature
+    }
+
+
+def verify_secure_state(state_data, max_age_seconds=300):
+    try:
+        user_id = state_data.get('user_id')
+        timestamp = state_data.get('timestamp')
+        received_signature = state_data.get('signature')
         
+        if not all([user_id, timestamp, received_signature]):
+            logger.error("Missing required fields in state")
+            return False, "Invalid state structure"
+        
+        current_time = int(time.time())
+        state_time = int(timestamp)
+        
+        if current_time - state_time > max_age_seconds:
+            logger.error(f"State expired: {current_time - state_time} seconds old")
+            return False, "State expired"
+        
+        message = f"{user_id}:{timestamp}"
+        expected_signature = hmac.new(
+            settings.SECRET_KEY.encode(),
+            message.encode(),
+            hashlib.sha256
+        ).hexdigest()
+        
+        if not hmac.compare_digest(received_signature, expected_signature):
+            logger.error("HMAC signature verification failed")
+            return False, "Invalid signature"
+        
+        return True, "Valid"
+        
+    except Exception as e:
+        logger.error(f"State verification error: {e}")
+        return False, "Verification error"
